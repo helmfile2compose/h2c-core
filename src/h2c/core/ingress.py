@@ -1,7 +1,7 @@
 """Ingress conversion — IngressProvider abstract class, rewriter dispatch."""
 
-from helmfile2compose.pacts.types import ConvertContext, ConvertResult, Provider
-from helmfile2compose.pacts.ingress import IngressRewriter
+from h2c.pacts.types import ConvertContext, ConvertResult, Provider
+from h2c.pacts.ingress import IngressRewriter
 
 
 class _NullRewriter(IngressRewriter):

@@ -1,6 +1,6 @@
 """K8s Service indexing — alias maps, port maps, network aliases."""
 
-from helmfile2compose.core.constants import WORKLOAD_KINDS, _K8S_DNS_RE
+from h2c.core.constants import WORKLOAD_KINDS, _K8S_DNS_RE
 
 
 def _resolve_named_port(name: str, container_ports: list) -> int | str:

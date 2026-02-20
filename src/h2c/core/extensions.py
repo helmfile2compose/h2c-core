@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-from helmfile2compose.core.ingress import _is_rewriter_class
+from h2c.core.ingress import _is_rewriter_class
 
 
 def _discover_extension_files(extensions_dir):

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Concatenate the helmfile2compose core engine into a single-file h2c.py."""
+"""Concatenate the h2c core engine into a single-file h2c.py."""
 
 import re
 import subprocess
 import sys
 from pathlib import Path
 
-SRC = Path(__file__).parent / "src" / "helmfile2compose"
+SRC = Path(__file__).parent / "src" / "h2c"
 OUTPUT = Path(__file__).parent / "h2c.py"
 
 # Module order respects the dependency graph (no forward references).
@@ -30,7 +30,7 @@ MODULES = [
 
 # Imports to strip (internal cross-references, any indentation level)
 INTERNAL_IMPORT_RE = re.compile(
-    r'^\s*(?:from helmfile2compose[\w.]* import .+|import helmfile2compose[\w.]*)\s*$'
+    r'^\s*(?:from h2c[\w.]* import .+|import h2c[\w.]*)\s*$'
 )
 
 SHEBANG = "#!/usr/bin/env python3\n"

@@ -23,7 +23,9 @@ jobs:
       - name: Build bare engine
         run: python build.py
 
-      - name: Upload release asset
+      - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" h2c.py
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" h2c.py
+          gh release upload "${{ github.event.release.tag_name }}" build-distribution.py

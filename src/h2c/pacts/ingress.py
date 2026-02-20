@@ -1,6 +1,6 @@
 """Ingress rewriter base class and public helpers for extensions."""
 
-from helmfile2compose.pacts.types import ConvertContext, WELL_KNOWN_PORTS
+from h2c.pacts.types import ConvertContext, WELL_KNOWN_PORTS
 
 
 class IngressRewriter:

@@ -1,15 +1,19 @@
 """Main conversion orchestration — convert(), dispatch, overrides, fix-permissions."""
 
+import inspect
 import sys
 
-from helmfile2compose.pacts.types import ConvertContext, Provider
-from helmfile2compose.pacts.helpers import _secret_value
-from helmfile2compose.core.constants import (
+from h2c.pacts.types import (
+    ConvertContext, Converter, IndexerConverter, Provider,
+)
+from h2c.pacts.ingress import IngressRewriter
+from h2c.pacts.helpers import _secret_value
+from h2c.core.constants import (
     UNSUPPORTED_KINDS, IGNORED_KINDS, _SECRET_REF_RE,
 )
-from helmfile2compose.core.env import _postprocess_env
-from helmfile2compose.core.volumes import _resolve_host_path
-from helmfile2compose.core.services import _build_network_aliases
+from h2c.core.env import _postprocess_env
+from h2c.core.volumes import _resolve_host_path
+from h2c.core.services import _build_network_aliases
 
 # No built-in converters — distributions/extensions populate this
 _CONVERTERS = []
@@ -213,3 +217,55 @@ def _truncate_hostnames(compose_services: dict) -> None:
     for svc_name, svc in compose_services.items():
         if len(svc_name) > 63 and "hostname" not in svc:
             svc["hostname"] = svc_name[:63]
+
+
+# Base classes to skip during auto-registration
+_BASE_CLASSES = (Converter, IndexerConverter, Provider, IngressRewriter)
+
+
+def _auto_register() -> None:
+    """Scan the caller's globals for converter/rewriter/transform classes and register them.
+
+    Called by build-distribution.py after all extension code has been concatenated.
+    Populates _CONVERTERS, _TRANSFORMS, _REWRITERS (from core.ingress), and CONVERTED_KINDS.
+    Crashes on duplicate kind claims.
+    """
+    from h2c.core.ingress import _REWRITERS, _is_rewriter_class, IngressProvider
+    from h2c.core.extensions import _is_converter_class, _is_transform_class
+
+    skip = _BASE_CLASSES + (IngressProvider,)
+    caller_globals = inspect.stack()[1][0].f_globals
+    converters = []
+    transforms = []
+    rewriters = []
+    for name, obj in caller_globals.items():
+        if not isinstance(obj, type) or obj in skip or name.startswith("_"):
+            continue
+        # Use __main__ or whatever the caller's module name is
+        mod_name = obj.__module__
+        if _is_converter_class(obj, mod_name):
+            converters.append(obj())
+        elif _is_rewriter_class(obj, mod_name):
+            rewriters.append(obj())
+        elif _is_transform_class(obj, mod_name):
+            transforms.append(obj())
+
+    # Check for duplicate kind claims
+    kind_owners: dict[str, str] = {}
+    for c in converters:
+        for k in c.kinds:
+            if k in kind_owners:
+                print(f"Error: kind '{k}' claimed by both "
+                      f"{kind_owners[k]} and {type(c).__name__}",
+                      file=sys.stderr)
+                sys.exit(1)
+            kind_owners[k] = type(c).__name__
+
+    # Sort by priority and register
+    converters.sort(key=lambda c: getattr(c, 'priority', 1000))
+    transforms.sort(key=lambda t: getattr(t, 'priority', 1000))
+    rewriters.sort(key=lambda r: getattr(r, 'priority', 1000))
+    _CONVERTERS.extend(converters)
+    _TRANSFORMS.extend(transforms)
+    _REWRITERS.extend(rewriters)
+    CONVERTED_KINDS.update(k for c in converters for k in c.kinds)

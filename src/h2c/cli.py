@@ -4,15 +4,15 @@ import argparse
 import os
 import sys
 
-from helmfile2compose.core.constants import WORKLOAD_KINDS, AUTO_EXCLUDE_PATTERNS
-from helmfile2compose.core.convert import (
+from h2c.core.constants import WORKLOAD_KINDS, AUTO_EXCLUDE_PATTERNS
+from h2c.core.convert import (
     convert, _CONVERTERS, _TRANSFORMS, CONVERTED_KINDS,
 )
-from helmfile2compose.core.ingress import _REWRITERS, IngressProvider
-from helmfile2compose.core.extensions import _load_extensions, _register_extensions
-from helmfile2compose.io.parsing import run_helmfile_template, parse_manifests, _infer_namespaces
-from helmfile2compose.io.config import load_config, save_config
-from helmfile2compose.io.output import write_compose, emit_warnings
+from h2c.core.ingress import _REWRITERS, IngressProvider
+from h2c.core.extensions import _load_extensions, _register_extensions
+from h2c.io.parsing import run_helmfile_template, parse_manifests, _infer_namespaces
+from h2c.io.config import load_config, save_config
+from h2c.io.output import write_compose, emit_warnings
 
 
 def _init_first_run(config: dict, manifests: dict, args) -> None:

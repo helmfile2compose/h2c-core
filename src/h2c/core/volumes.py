@@ -2,8 +2,8 @@
 
 import os
 
-from helmfile2compose.pacts.helpers import apply_replacements, _secret_value
-from helmfile2compose.core.env import _apply_port_remap
+from h2c.pacts.helpers import apply_replacements, _secret_value
+from h2c.core.env import _apply_port_remap
 
 
 def _build_vol_map(pod_volumes: list,
