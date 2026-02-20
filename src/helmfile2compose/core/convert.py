@@ -1,6 +1,8 @@
 """Main conversion orchestration — convert(), dispatch, overrides, fix-permissions."""
 
-from helmfile2compose.pacts.types import ConvertContext
+import sys
+
+from helmfile2compose.pacts.types import ConvertContext, Provider
 from helmfile2compose.pacts.helpers import _secret_value
 from helmfile2compose.core.constants import (
     UNSUPPORTED_KINDS, IGNORED_KINDS, _SECRET_REF_RE,
@@ -142,11 +144,16 @@ def convert(manifests: dict[str, list[dict]], config: dict,
     extensions_config = config.get("extensions", {})
     compose_services: dict = {}
     caddy_entries: list[dict] = []
-    for converter in sorted(_CONVERTERS, key=lambda c: getattr(c, 'priority', 100)):
+    for converter in sorted(_CONVERTERS, key=lambda c: getattr(c, 'priority', 1000)):
         ctx.extension_config = extensions_config.get(getattr(converter, 'name', ''), {})
         for kind in converter.kinds:
             result = converter.convert(kind, manifests.get(kind, []), ctx)
-            compose_services.update(result.services)
+            if result.services and not isinstance(converter, Provider):
+                print(f"Warning: {type(converter).__name__} returned services "
+                      f"but is not a Provider — services discarded",
+                      file=sys.stderr)
+            else:
+                compose_services.update(result.services)
             caddy_entries.extend(result.caddy_entries)
 
     # Post-process all services: port remapping and replacements.

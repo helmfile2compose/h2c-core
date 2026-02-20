@@ -37,7 +37,7 @@ class IngressProvider(Provider):
     """
     name = "ingress"
     kinds = ["Ingress"]
-    priority = 90
+    priority = 900
 
     def convert(self, _kind: str, manifests: list[dict], ctx: ConvertContext) -> ConvertResult:
         """Convert all Ingress manifests via rewriter dispatch."""

@@ -10,7 +10,7 @@ class IngressRewriter:
     translates controller-specific annotations into Caddy entries.
     """
     name: str = ""
-    priority: int = 100
+    priority: int = 1000
 
     def match(self, manifest: dict, ctx: ConvertContext) -> bool:
         """Return True if this rewriter handles this Ingress manifest."""

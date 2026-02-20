@@ -37,7 +37,7 @@ class Converter:
     """Base class for all converters — indexers, providers, and custom extensions."""
     name: str = ""
     kinds: list = []
-    priority: int = 100
+    priority: int = 1000
 
     def convert(self, kind, manifests, ctx):
         """Convert manifests of a given kind. Override in subclasses."""
@@ -46,9 +46,9 @@ class Converter:
 
 class IndexerConverter(Converter):
     """Converter that populates ConvertContext fields (returns empty ConvertResult)."""
-    priority: int = 5
+    priority: int = 50
 
 
 class Provider(Converter):
     """Converter that produces compose services in ConvertResult."""
-    priority: int = 50
+    priority: int = 500

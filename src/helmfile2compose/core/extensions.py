@@ -98,10 +98,10 @@ def _load_extensions(extensions_dir):
         if module:
             _classify_module(module, converters, transforms, rewriters)
 
-    # Sort by priority (lower = earlier). Default 100.
-    converters.sort(key=lambda c: getattr(c, 'priority', 100))
-    transforms.sort(key=lambda t: getattr(t, 'priority', 100))
-    rewriters.sort(key=lambda r: getattr(r, 'priority', 100))
+    # Sort by priority (lower = earlier). Default 1000.
+    converters.sort(key=lambda c: getattr(c, 'priority', 1000))
+    transforms.sort(key=lambda t: getattr(t, 'priority', 1000))
+    rewriters.sort(key=lambda r: getattr(r, 'priority', 1000))
     _log_loaded(converters, transforms, rewriters)
     return converters, transforms, rewriters
 
