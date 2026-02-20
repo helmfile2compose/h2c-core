@@ -1,6 +1,8 @@
 # h2c-core
 
+![vibe coded](https://img.shields.io/badge/vibe-coded-ff69b4)
 ![python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB)
+![heresy: 9/10](https://img.shields.io/badge/heresy-9%2F10-8b0000)
 ![public domain](https://img.shields.io/badge/license-public%20domain-brightgreen)
 
 *The bare conversion engine. A temple with no priests.*
