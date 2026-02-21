@@ -26,7 +26,7 @@ Feed it manifests and it will parse them, warn that every kind is unknown, and p
 ## Architecture
 
 ```
-src/helmfile2compose/
+src/h2c/
 ├── pacts/          Public contracts (ConvertContext, ConvertResult, IngressRewriter...)
 ├── core/           Conversion engine (convert, env, volumes, services, ingress, extensions)
 ├── io/             Input/output (parsing, config, output)
