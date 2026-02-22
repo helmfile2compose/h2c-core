@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-"""Build a distribution single-file script from h2c core + extensions.
+"""Build a distribution single-file script from a base + extensions.
 
-Two modes:
-  # Local dev (reads core sources directly)
+Three modes for the base:
+  # Local dev — read core sources directly from h2c-core package
   python build-distribution.py helmfile2compose --extensions-dir ./extensions --core-dir ../h2c-core
 
-  # CI (fetches h2c.py from latest release)
+  # Local — use a pre-built .py as base
+  python build-distribution.py kubernetes2simple --extensions-dir ./extensions --base ../helmfile2compose/helmfile2compose.py
+
+  # CI — fetch a distribution from GitHub releases (default: core latest)
   python build-distribution.py helmfile2compose --extensions-dir ./extensions
+  python build-distribution.py kubernetes2simple --extensions-dir ./extensions --base-distribution helmfile2compose
 """
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -43,6 +48,11 @@ CORE_MODULES = [
 SHEBANG = "#!/usr/bin/env python3\n"
 PYLINT_DISABLE = "# pylint: disable=too-many-locals\n"
 
+DISTRIBUTIONS_URL = (
+    "https://raw.githubusercontent.com/"
+    "helmfile2compose/h2c-manager/main/distributions.json"
+)
+
 
 def collect_imports_and_body(path: Path) -> tuple[list[str], list[str]]:
     """Split a module into stdlib/external imports and body lines."""
@@ -73,12 +83,14 @@ def collect_imports_and_body(path: Path) -> tuple[list[str], list[str]]:
                 in_internal_import = False
             continue
 
-        if INTERNAL_IMPORT_RE.match(line):
+        if INTERNAL_IMPORT_RE.match(line) or stripped.startswith("from __future__"):
             if "(" in stripped and ")" not in stripped:
                 in_internal_import = True
             continue
 
-        if stripped.startswith(("import ", "from ")) and not stripped.startswith("from ."):
+        if (not line[0].isspace()
+                and stripped.startswith(("import ", "from "))
+                and not stripped.startswith(("from .", "from __future__"))):
             imports.append(line)
             continue
 
@@ -87,32 +99,55 @@ def collect_imports_and_body(path: Path) -> tuple[list[str], list[str]]:
     return imports, body
 
 
-def fetch_core_release(version: str = "latest") -> str:
-    """Download h2c.py from the h2c-core GitHub releases."""
-    if version == "latest":
-        url = "https://github.com/helmfile2compose/h2c-core/releases/latest/download/h2c.py"
-    else:
-        url = f"https://github.com/helmfile2compose/h2c-core/releases/download/{version}/h2c.py"
-    print(f"Fetching h2c.py from {url}", file=sys.stderr)
-    try:
-        with urllib.request.urlopen(url) as resp:
-            return resp.read().decode("utf-8")
-    except Exception as exc:
-        print(f"Error fetching h2c.py: {exc}", file=sys.stderr)
-        sys.exit(1)
+def strip_tail(text: str) -> str:
+    """Remove tail blocks (_auto_register, sys.modules hack, __main__ guard).
 
-
-def strip_main_guard(text: str) -> str:
-    """Remove the if __name__ == '__main__' block from the end of h2c.py."""
+    Cuts everything from the first _auto_register() call or if __name__ guard
+    onwards. Works on both bare core (only __main__) and full distributions
+    (_auto_register + sys.modules + __main__).
+    """
     lines = text.splitlines(keepends=True)
-    for i in range(len(lines) - 1, -1, -1):
-        if lines[i].strip().startswith('if __name__'):
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped == "_auto_register()" or stripped.startswith("if __name__"):
+            # Walk back to include the preceding comment block
+            while i > 0 and lines[i - 1].strip().startswith("#"):
+                i -= 1
+            # Walk back past blank lines
+            while i > 0 and not lines[i - 1].strip():
+                i -= 1
             return "".join(lines[:i])
     return text
 
 
+def fetch_distributions_registry() -> dict:
+    """Fetch and parse distributions.json from h2c-manager."""
+    try:
+        with urllib.request.urlopen(DISTRIBUTIONS_URL) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        return data.get("distributions", {})
+    except Exception as exc:
+        print(f"Error fetching distributions registry: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
+def fetch_base_release(repo: str, filename: str, version: str = "latest") -> str:
+    """Download a distribution .py from GitHub releases."""
+    if version == "latest":
+        url = f"https://github.com/{repo}/releases/latest/download/{filename}"
+    else:
+        url = f"https://github.com/{repo}/releases/download/{version}/{filename}"
+    print(f"Fetching {filename} from {url}", file=sys.stderr)
+    try:
+        with urllib.request.urlopen(url) as resp:
+            return resp.read().decode("utf-8")
+    except Exception as exc:
+        print(f"Error fetching {filename}: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
 def parse_flat_script(text: str) -> tuple[dict[str, str], list[str]]:
-    """Parse a flat h2c.py into deduplicated imports + body lines."""
+    """Parse a flat .py script into deduplicated imports + body lines."""
     all_imports: dict[str, str] = {}
     body: list[str] = []
     past_header = False
@@ -180,37 +215,65 @@ def build_core_body_from_local(core_dir: Path) -> tuple[dict[str, str], list[str
     return all_imports, all_bodies
 
 
-def build_core_body_from_release(version: str) -> tuple[dict[str, str], list[str]]:
-    """Fetch h2c.py from a release and parse it."""
-    core_text = strip_main_guard(fetch_core_release(version))
-    all_imports, core_body = parse_flat_script(core_text)
-    all_bodies: list[str] = ["\n# --- core ---\n"]
-    all_bodies.extend(core_body)
+def build_base_body_from_file(base_path: Path) -> tuple[dict[str, str], list[str]]:
+    """Read a pre-built .py distribution and parse it."""
+    if not base_path.exists():
+        print(f"Error: {base_path} not found", file=sys.stderr)
+        sys.exit(1)
+    text = strip_tail(base_path.read_text())
+    all_imports, body = parse_flat_script(text)
+    label = base_path.stem
+    all_bodies: list[str] = [f"\n# --- {label} ---\n"]
+    all_bodies.extend(body)
+    return all_imports, all_bodies
+
+
+def build_base_body_from_release(distribution: str, version: str) -> tuple[dict[str, str], list[str]]:
+    """Fetch a distribution from GitHub releases and parse it."""
+    registry = fetch_distributions_registry()
+    entry = registry.get(distribution)
+    if not entry:
+        print(f"Error: unknown distribution '{distribution}'", file=sys.stderr)
+        print(f"  Available: {', '.join(sorted(registry))}", file=sys.stderr)
+        sys.exit(1)
+    text = strip_tail(fetch_base_release(entry["repo"], entry["file"], version))
+    all_imports, body = parse_flat_script(text)
+    all_bodies: list[str] = [f"\n# --- {distribution} ---\n"]
+    all_bodies.extend(body)
     return all_imports, all_bodies
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Build a distribution single-file script from h2c core + extensions")
+        description="Build a distribution single-file script from a base + extensions")
     parser.add_argument("name", help="Distribution name (output: <name>.py)")
     parser.add_argument("--extensions-dir", type=Path, required=True,
                         help="Directory containing extension .py files")
     parser.add_argument("--core-dir", type=Path,
-                        help="Path to local h2c-core repo (local dev mode)")
-    parser.add_argument("--core-version", default="latest",
-                        help="h2c-core release version to fetch (CI mode, default: latest)")
+                        help="Path to local h2c-core repo (reads package sources directly)")
+    parser.add_argument("--base", type=Path,
+                        help="Path to a pre-built .py to use as base")
+    parser.add_argument("--base-distribution", default="core",
+                        help="Distribution name from registry (default: core)")
+    parser.add_argument("--base-version", default="latest",
+                        help="Distribution version to fetch (default: latest)")
     args = parser.parse_args()
 
     output = Path(args.name + ".py")
     docstring = f'"""{args.name} — convert helmfile template output to compose.yml + Caddyfile."""\n'
 
-    # Step 1: Build core body
+    # Step 1: Build base body
     if args.core_dir:
         print(f"Local dev mode: reading core from {args.core_dir}", file=sys.stderr)
         all_imports, all_bodies = build_core_body_from_local(args.core_dir)
+    elif args.base:
+        print(f"Local base mode: reading from {args.base}", file=sys.stderr)
+        all_imports, all_bodies = build_base_body_from_file(args.base)
     else:
-        print(f"CI mode: fetching h2c-core {args.core_version}", file=sys.stderr)
-        all_imports, all_bodies = build_core_body_from_release(args.core_version)
+        print(f"CI mode: fetching {args.base_distribution} {args.base_version}",
+              file=sys.stderr)
+        all_imports, all_bodies = build_base_body_from_release(
+            args.base_distribution, args.base_version)
 
     # Step 2: Concat extension .py files
     if not args.extensions_dir.is_dir():
@@ -264,7 +327,8 @@ def main():
     lines.append("    main()\n")
 
     output.write_text("".join(lines))
-    print(f"Built {output} ({sum(1 for l in lines if l.strip())} non-empty lines)")
+    total_lines = "".join(lines).count("\n")
+    print(f"Built {output} ({total_lines} lines)")
 
     # Step 8: Smoke test
     result = subprocess.run(
