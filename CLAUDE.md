@@ -11,12 +11,14 @@ Related repos:
 
 Python package under `src/h2c/` with three layers:
 
-- **`pacts/`** — public contracts for extensions (`ConvertContext`, `ConvertResult`, `Converter`, `Provider`, `IngressRewriter`, helpers). Stable API — extensions import from here (or from `h2c` directly via re-exports).
+- **`pacts/`** — public contracts for extensions (`ConvertContext`, `ConverterResult`, `ProviderResult`, `Converter`, `Provider`, `IngressRewriter`, helpers). `ConvertResult` is kept as a deprecated alias. Stable API — extensions import from here (or from `h2c` directly via re-exports).
 - **`core/`** — internal conversion engine (`constants`, `env`, `volumes`, `services`, `ingress`, `extensions`, `convert`). Not public API.
 - **`io/`** — input/output (`parsing`, `config`, `output`). Not public API.
 - **`cli.py`** — CLI entry point.
 
-The single-file `h2c.py` is a **build artifact** produced by `build.py` (concat script). It is not committed — CI builds it on tag push and uploads as a release asset.
+The single-file `h2c.py` is a **build artifact** produced by `build.py` (concat script). It is not committed — CI builds it on tag push and uploads as a release asset. Both `build.py` and `build-distribution.py` inject `sys.modules.setdefault('h2c', sys.modules[__name__])` at the top of the output — this registers the running module as `h2c` so that runtime-loaded extensions (`--extensions-dir`) resolve `from h2c import ...` to the same module instance. Without it, Python's `__main__` vs module double-import creates split identity (`__main__.ProviderResult` ≠ `h2c.ProviderResult`).
+
+`__init__.py` re-exports the pacts API plus selected core helpers used by built-in extensions: `_build_alias_map`, `_build_service_port_map`, `_resolve_named_port`, `_convert_command`, `_convert_volume_mounts`, `_build_vol_map`. These are semi-public — stable enough for built-in extensions, but not guaranteed for third-party use.
 
 ```bash
 # Development: run from package
@@ -35,6 +37,8 @@ Dependency: `pyyaml`.
 ## Workflow
 
 Lint often: run `PYTHONPATH=src pylint src/h2c/` and `PYTHONPATH=src pyflakes src/h2c/` after any change. Fix real issues (unused imports, actual bugs, f-strings without placeholders). Pylint style warnings (too-many-locals, line-too-long, etc.) are acceptable.
+
+**Duck typing dispatch:** `convert.py` uses `getattr(result, 'services', None)` instead of `isinstance(result, ProviderResult)` to detect services in converter results. This avoids the dual-module identity problem where `__main__.ProviderResult` ≠ `h2c.ProviderResult`. Same reason we don't guard with `isinstance(converter, Provider)`.
 
 **Null-safe YAML access:** `.get("key", {})` returns `None` when the key exists with an explicit `null` value (Helm conditional blocks). Always use `.get("key") or {}` / `.get("key") or []` for fields that Helm may render as null (`annotations`, `ports`, `initContainers`, `data`, `rules`, `selector`, etc.).
 
@@ -67,7 +71,7 @@ Flags: `--helmfile-dir`, `-e`/`--environment`, `--from-dir`, `--output-dir`, `--
   - **Service (ClusterIP)** → hostname rewriting (K8s Service name → compose service name) in env vars, Caddyfile, configmap files
   - **Service (ExternalName)** → resolved through alias chain (e.g. `docs-media` → minio FQDN → `minio`)
   - **Service (NodePort/LoadBalancer)** → `ports:` mapping
-  - **Ingress** → Caddy service + Caddyfile blocks (`reverse_proxy`), dispatched to `IngressRewriter` classes by `ingressClassName`. Backend SSL via TLS transport, specific paths before catch-all. `extra_directives` for raw Caddy directives. Built-in: `HAProxyRewriter`.
+  - **Ingress** → ingress service + Caddyfile blocks (`reverse_proxy`), dispatched to `IngressRewriter` classes by `ingressClassName`. Backend SSL via TLS transport, specific paths before catch-all. `extra_directives` for raw Caddy directives. Built-in: `HAProxyRewriter`.
   - **PVC** → named volumes + `helmfile2compose.yaml` config
 - **Init containers** → separate compose services with `restart: on-failure`, named `{workload}-init-{container-name}`
 - **Sidecar containers** (`containers[1:]`) → separate compose services with `network_mode: container:<main>` (shared network namespace)
@@ -75,19 +79,20 @@ Flags: `--helmfile-dir`, `-e`/`--environment`, `--from-dir`, `--output-dir`, `--
 - **Hostname truncation** → services >63 chars get explicit `hostname:` to avoid sethostname failures
 - Warns on stderr for: resource limits, HPA, CronJob, PDB, unknown kinds
 - Silently ignores: RBAC, ServiceAccounts, NetworkPolicies, CRDs (unless claimed by a loaded extension), IngressClass, Webhooks, Namespaces
-- Writes `compose.yml` (configurable via `--compose-file`), `Caddyfile` (or `Caddyfile-<project>` when `disableCaddy: true`), `helmfile2compose.yaml`
+- Writes `compose.yml` (configurable via `--compose-file`), `Caddyfile` (or `Caddyfile-<project>` when `disable_ingress: true`), `helmfile2compose.yaml`
+- **Exit codes**: 0 = success, 1 = fatal error, 2 = no services generated (empty output — not a crash, but nothing useful produced)
 
 ### External extensions (`--extensions-dir`)
 
 Three extension types, loaded from the same `--extensions-dir`:
 
 - **Converters** — classes with `kinds` and `convert()`. Produce synthetic resources and/or compose services from K8s manifests. Sorted by `priority` (lower = earlier, default 100), inserted before built-in converters. Naming convention: `h2c-converter-*` for resource-only, `h2c-provider-*` for service-producing.
-- **Transforms** — classes with `transform(compose_services, caddy_entries, ctx)` and no `kinds`. Post-process the final compose output after alias injection. Sorted by `priority` (default 100).
+- **Transforms** — classes with `transform(compose_services, ingress_entries, ctx)` and no `kinds`. Post-process the final compose output after alias injection. Sorted by `priority` (default 100).
 - **Ingress rewriters** — classes with `name`, `match()`, and `rewrite()`. Translate controller-specific Ingress annotations to Caddy entries. Same `name` replaces built-in. Sorted by `priority` (default 100).
 
 `--extensions-dir` points to a directory of `.py` files (or cloned repos with `.py` files one level deep). The loader detects each type automatically.
 
-Extensions import `ConvertContext`/`ConvertResult`/`IngressRewriter` from `h2c`. `get_ingress_class(manifest, ingress_types)` and `resolve_backend(path_entry, manifest, ctx)` are public helpers for rewriters. `apply_replacements(text, replacements)` and `resolve_env(container, configmaps, secrets, workload_name, warnings, replacements=None, service_port_map=None)` are also public — available to extensions that need string replacement or env resolution. Available extensions:
+Extensions import `ConvertContext`/`ConverterResult`/`ProviderResult`/`IngressRewriter` from `h2c` (`ConvertResult` still works as a deprecated alias). `get_ingress_class(manifest, ingress_types)` and `resolve_backend(path_entry, manifest, ctx)` are public helpers for rewriters. `apply_replacements(text, replacements)` and `resolve_env(container, configmaps, secrets, workload_name, warnings, replacements=None, service_port_map=None)` are also public — available to extensions that need string replacement or env resolution. Available extensions (each in its own repo under the helmfile2compose org — the 7 built-in extensions previously bundled in `extensions/` of the distribution are now standalone repos too):
 - **keycloak** — provider: `Keycloak`, `KeycloakRealmImport` (priority 50)
 - **cert-manager** — converter: `Certificate`, `ClusterIssuer`, `Issuer` (priority 10, requires `cryptography`, incompatible with flatten-internal-urls)
 - **trust-manager** — converter: `Bundle` (priority 20, depends on cert-manager)
@@ -107,8 +112,10 @@ Persistent, re-runnable. User edits are preserved across runs.
 helmfile2ComposeVersion: v1
 name: my-platform
 volume_root: ./data        # prefix for bare host_path names (default: ./data)
-caddy_email: admin@example.com  # optional — for Caddy automatic HTTPS
-caddy_tls_internal: true   # optional — force Caddy internal CA for all domains
+extensions:
+  caddy:
+    email: admin@example.com  # optional — for Caddy automatic HTTPS
+    tls_internal: true        # optional — force Caddy internal CA for all domains
 volumes:
   data-postgresql:
     driver: local          # named docker volume
@@ -140,13 +147,15 @@ services:                 # custom services added to compose (not from K8s)
 
 - `$secret:<name>:<key>` — placeholders in `overrides` and `services` values, resolved from K8s Secret manifests at generation time. `null` values in overrides delete the key.
 - `$volume_root` — placeholder in `overrides` and `services` values, resolved to the `volume_root` config value.
-- `caddy_email` — optional. Generates a global Caddy block `{ email <value> }`.
-- `caddy_tls_internal` — optional. Adds `tls internal` to all Caddyfile host blocks.
-- `ingressTypes` — optional. Maps custom `ingressClassName` values to canonical rewriter names (e.g. `haproxy-controller-internal: haproxy`). Without this, only exact matches work.
-- `disableCaddy: true` — optional, manual only (never auto-generated). Skips Caddy service, writes Ingress rules to `Caddyfile-<project>`.
+- `extensions.caddy.email` — optional. Generates a global Caddy block `{ email <value> }`.
+- `extensions.caddy.tls_internal` — optional. Adds `tls internal` to all Caddyfile host blocks.
+- `ingress_types` — optional. Maps custom `ingressClassName` values to canonical rewriter names (e.g. `haproxy-controller-internal: haproxy`). Without this, only exact matches work.
+- `disable_ingress: true` — optional, manual only (never auto-generated). Skips ingress service, writes Ingress rules to `Caddyfile-<project>`.
 - `network: <name>` — optional. Overrides the default compose network with an external one.
 - `core_version: v2.1.0` — optional. Pins the h2c-core version for h2c-manager (ignored by h2c-core itself).
 - `depends: [keycloak, cert-manager==0.1.0, trust-manager]` — optional. Lists extensions for h2c-manager to auto-install (ignored by h2c-core itself).
+
+**Config migration:** `_migrate_config()` in `io/config.py` runs on load and auto-renames legacy keys (`disableCaddy` → `disable_ingress`, `ingressTypes` → `ingress_types`, `caddy_email` → `extensions.caddy.email`, `caddy_tls_internal` → `extensions.caddy.tls_internal`, `helmfile2ComposeVersion` → removed). Old keys vanish on next save. Stderr notice if migration occurred.
 
 ### Automatic rewrites
 

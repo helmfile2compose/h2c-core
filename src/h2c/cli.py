@@ -105,7 +105,7 @@ def main():
     # Step 6: write outputs
     if not services:
         print("No services generated — nothing to write.", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(2)
 
     write_compose(services, config, args.output_dir, compose_file=args.compose_file)
 
