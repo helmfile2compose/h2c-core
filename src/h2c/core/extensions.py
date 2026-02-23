@@ -149,6 +149,7 @@ def _register_extensions(extra_converters, extra_transforms, extra_rewriters,
                          converters, transforms, rewriters, converted_kinds):
     """Register loaded extensions into the provided registries."""
     transforms.extend(extra_transforms)
+    transforms.sort(key=lambda t: getattr(t, 'priority', 1000))
     _override_rewriters(extra_rewriters, rewriters)
     ext_kind_owners = _check_duplicate_kinds(extra_converters)
     _override_converters(ext_kind_owners, converters)

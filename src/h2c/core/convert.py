@@ -1,4 +1,4 @@
-"""Main conversion orchestration — convert(), dispatch, overrides, fix-permissions."""
+"""Main conversion orchestration — convert(), dispatch, overrides."""
 
 import inspect
 import sys
@@ -12,7 +12,6 @@ from h2c.core.constants import (
     UNSUPPORTED_KINDS, IGNORED_KINDS, _SECRET_REF_RE,
 )
 from h2c.core.env import _postprocess_env
-from h2c.core.volumes import _resolve_host_path
 from h2c.core.services import _build_network_aliases
 
 # No built-in converters — distributions/extensions populate this
@@ -89,38 +88,6 @@ def _apply_overrides(compose_services: dict, config: dict,
         compose_services[svc_name] = _resolve_volume_root(resolved, volume_root)
 
 
-def _generate_fix_permissions(fix_permissions: dict[str, int],
-                              config: dict, compose_services: dict) -> None:
-    """Generate a fix-permissions service for non-root bind-mounted volumes.
-
-    fix_permissions maps PVC claim names to UIDs. Only PVCs with host_path
-    binds (not named volumes) need fixing.
-    """
-    if not fix_permissions:
-        return
-    volume_root = config.get("volume_root", "./data")
-    by_uid: dict[int, list[str]] = {}
-    for claim, uid in sorted(fix_permissions.items()):
-        vol_cfg = config.get("volumes", {}).get(claim)
-        if vol_cfg and isinstance(vol_cfg, dict) and "host_path" in vol_cfg:
-            resolved = _resolve_host_path(vol_cfg["host_path"], volume_root)
-            by_uid.setdefault(uid, []).append(resolved)
-    if not by_uid:
-        return
-    chown_cmds = []
-    volumes = []
-    for uid, paths in sorted(by_uid.items()):
-        mount_paths = [f"/fixperm/{i}" for i in range(len(volumes), len(volumes) + len(paths))]
-        chown_cmds.append(f"chown -R {uid} {' '.join(mount_paths)}")
-        for host_path, mount_path in zip(paths, mount_paths):
-            volumes.append(f"{host_path}:{mount_path}")
-    compose_services["fix-permissions"] = {
-        "image": "busybox", "restart": "no", "user": "0",
-        "command": ["sh", "-c", " && ".join(chown_cmds)],
-        "volumes": volumes,
-    }
-
-
 def _emit_kind_warnings(manifests: dict, warnings: list[str]) -> None:
     """Emit warnings for unsupported and unknown manifest kinds."""
     for kind in UNSUPPORTED_KINDS:
@@ -178,7 +145,6 @@ def convert(manifests: dict[str, list[dict]], config: dict,
             if vol_name not in ctx.pvc_names:
                 warnings.append(f"volume '{vol_name}' in helmfile2compose.yaml not referenced by any PVC — stale?")
 
-    _generate_fix_permissions(ctx.fix_permissions, config, compose_services)
     _emit_kind_warnings(manifests, warnings)
     _apply_overrides(compose_services, config, ctx.secrets, warnings)
 

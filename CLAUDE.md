@@ -75,7 +75,7 @@ Flags: `--helmfile-dir`, `-e`/`--environment`, `--from-dir`, `--output-dir`, `--
   - **PVC** → named volumes + `helmfile2compose.yaml` config
 - **Init containers** → separate compose services with `restart: on-failure`, named `{workload}-init-{container-name}`
 - **Sidecar containers** (`containers[1:]`) → separate compose services with `network_mode: container:<main>` (shared network namespace)
-- **Fix-permissions** → auto-generated for non-root containers with PVC bind mounts (`chown -R <uid>`)
+- **Fix-permissions** → handled by the fix-permissions transform (built-in extension), generates a busybox service for non-root bind mounts
 - **Hostname truncation** → services >63 chars get explicit `hostname:` to avoid sethostname failures
 - Warns on stderr for: resource limits, HPA, CronJob, PDB, unknown kinds
 - Silently ignores: RBAC, ServiceAccounts, NetworkPolicies, CRDs (unless claimed by a loaded extension), IngressClass, Webhooks, Namespaces
