@@ -152,8 +152,9 @@ def _resolve_envfrom(envfrom_list: list, configmaps: dict, secrets: dict) -> lis
 def _postprocess_env(services: dict, ctx) -> None:
     """Apply port remapping and replacements to all services.
 
-    This catches operator-produced services that bypass WorkloadConverter's
-    per-env-var rewriting. Safe to run on already-processed services (idempotent).
+    Providers that build services from scratch may not apply port remapping or
+    user-defined replacements to their env vars. This pass catches them.
+    Safe to run on already-processed services (idempotent).
     """
     for _svc_name, svc in services.items():
         env = svc.get("environment")

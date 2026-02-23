@@ -126,7 +126,7 @@ def convert(manifests: dict[str, list[dict]], config: dict,
             ingress_entries.extend(result.ingress_entries)
 
     # Post-process all services: port remapping and replacements.
-    # Idempotent — safe on services already processed by WorkloadConverter.
+    # Idempotent — safe on services whose env vars were already rewritten by a provider.
     _postprocess_env(compose_services, ctx)
 
     # Add network aliases so K8s FQDNs resolve via compose DNS

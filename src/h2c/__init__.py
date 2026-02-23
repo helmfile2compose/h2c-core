@@ -35,7 +35,7 @@ __all__ = [
     "apply_replacements",
     "resolve_env",
     "_secret_value",
-    # Helpers for built-in extensions (workload converter, service indexer)
+    # K8s-to-compose conversion primitives (pod specs, volumes, ports, commands)
     "_convert_command",
     "_convert_volume_mounts",
     "_build_vol_map",
