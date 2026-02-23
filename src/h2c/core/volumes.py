@@ -127,13 +127,6 @@ def _convert_data_mount(data_dir: str, vm: dict) -> str:
     return f"{data_dir}:{mount_path}:ro"
 
 
-def _register_pvc(claim: str, config: dict, pvc_names: set) -> None:
-    """Register a single PVC claim in config if not already present."""
-    if claim and claim not in config.get("volumes", {}):
-        config.setdefault("volumes", {})[claim] = {"host_path": claim}
-        pvc_names.add(claim)
-
-
 def _convert_volume_mounts(volume_mounts: list, pod_volumes: list, pvc_names: set,
                            config: dict, workload_name: str, warnings: list[str],
                            configmaps: dict | None = None, secrets: dict | None = None,

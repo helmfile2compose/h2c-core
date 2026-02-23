@@ -97,7 +97,8 @@ def main():
                              _CONVERTERS, _TRANSFORMS, _REWRITERS, CONVERTED_KINDS)
 
     # Step 4: convert
-    services, ingress_entries, warnings = convert(manifests, config, output_dir=args.output_dir)
+    services, ingress_entries, warnings = convert(manifests, config, output_dir=args.output_dir,
+                                                  first_run=first_run)
 
     # Step 5: emit warnings
     emit_warnings(warnings)
@@ -115,10 +116,9 @@ def main():
     if ingress_provider and ingress_entries:
         ingress_provider.write_config(ingress_entries, args.output_dir, config)
 
-    save_config(config_path, config)
-    print(f"Wrote {config_path}", file=sys.stderr)
-
     if first_run:
+        save_config(config_path, config)
+        print(f"Wrote {config_path}", file=sys.stderr)
         print(
             "\n⚠ First run — helmfile2compose.yaml was created and likely needs manual edits.\n"
             "  Review exclude list, volume mappings, and re-run.",

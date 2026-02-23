@@ -133,7 +133,7 @@ def _emit_kind_warnings(manifests: dict, warnings: list[str]) -> None:
 
 
 def convert(manifests: dict[str, list[dict]], config: dict,
-            output_dir: str = ".") -> tuple[dict, list[dict], list[str]]:
+            output_dir: str = ".", first_run: bool = False) -> tuple[dict, list[dict], list[str]]:
     """Main conversion: returns (compose_services, ingress_entries, warnings)."""
     warnings: list[str] = []
 
@@ -142,6 +142,7 @@ def convert(manifests: dict[str, list[dict]], config: dict,
         config=config, output_dir=output_dir,
         replacements=config.get("replacements", []),
         warnings=warnings, manifests=manifests,
+        first_run=first_run,
     )
 
     # Dispatch to converters in priority order
@@ -166,10 +167,16 @@ def convert(manifests: dict[str, list[dict]], config: dict,
     _inject_network_aliases(compose_services, network_aliases)
     _warn_missing_fqdn(compose_services, network_aliases, ctx.services_by_selector, warnings)
 
-    # Register discovered PVCs
-    for pvc in sorted(ctx.pvc_names):
-        if pvc not in config.get("volumes", {}):
-            config.setdefault("volumes", {})[pvc] = {"host_path": pvc}
+    # PVC volume management: auto-populate on first run, detect stale on subsequent
+    config_volumes = config.get("volumes") or {}
+    if first_run:
+        for pvc in sorted(ctx.pvc_names):
+            if pvc not in config_volumes:
+                config.setdefault("volumes", {})[pvc] = {"host_path": pvc}
+    else:
+        for vol_name in sorted(config_volumes):
+            if vol_name not in ctx.pvc_names:
+                warnings.append(f"volume '{vol_name}' in helmfile2compose.yaml not referenced by any PVC — stale?")
 
     _generate_fix_permissions(ctx.fix_permissions, config, compose_services)
     _emit_kind_warnings(manifests, warnings)

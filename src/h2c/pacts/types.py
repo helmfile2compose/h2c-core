@@ -24,6 +24,7 @@ class ConvertContext:
     fix_permissions: dict = field(default_factory=dict)
     manifests: dict = field(default_factory=dict)
     extension_config: dict = field(default_factory=dict)
+    first_run: bool = False
 
 
 @dataclass

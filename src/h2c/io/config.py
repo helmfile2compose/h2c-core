@@ -47,7 +47,7 @@ def load_config(path: str) -> dict:
         cfg = {}
 
     if _migrate_config(cfg):
-        print("Config migrated to v3.1 key names (will be saved on next write)", file=sys.stderr)
+        print("Config migrated to v3.1 key names in memory", file=sys.stderr)
 
     cfg.setdefault("volume_root", "./data")
     cfg.setdefault("volumes", {})
