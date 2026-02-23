@@ -134,7 +134,7 @@ def _emit_kind_warnings(manifests: dict, warnings: list[str]) -> None:
 
 def convert(manifests: dict[str, list[dict]], config: dict,
             output_dir: str = ".") -> tuple[dict, list[dict], list[str]]:
-    """Main conversion: returns (compose_services, caddy_entries, warnings)."""
+    """Main conversion: returns (compose_services, ingress_entries, warnings)."""
     warnings: list[str] = []
 
     # Build context with empty containers — indexers populate them
@@ -147,18 +147,15 @@ def convert(manifests: dict[str, list[dict]], config: dict,
     # Dispatch to converters in priority order
     extensions_config = config.get("extensions", {})
     compose_services: dict = {}
-    caddy_entries: list[dict] = []
+    ingress_entries: list[dict] = []
     for converter in sorted(_CONVERTERS, key=lambda c: getattr(c, 'priority', 1000)):
         ctx.extension_config = extensions_config.get(getattr(converter, 'name', ''), {})
         for kind in converter.kinds:
             result = converter.convert(kind, manifests.get(kind, []), ctx)
-            if result.services and not isinstance(converter, Provider):
-                print(f"Warning: {type(converter).__name__} returned services "
-                      f"but is not a Provider — services discarded",
-                      file=sys.stderr)
-            else:
-                compose_services.update(result.services)
-            caddy_entries.extend(result.caddy_entries)
+            services = getattr(result, 'services', None)
+            if services:
+                compose_services.update(services)
+            ingress_entries.extend(result.ingress_entries)
 
     # Post-process all services: port remapping and replacements.
     # Idempotent — safe on services already processed by WorkloadConverter.
@@ -182,9 +179,9 @@ def convert(manifests: dict[str, list[dict]], config: dict,
 
     # Run transforms (post-processing hooks) after all alias injection
     for transform_cls in _TRANSFORMS:
-        transform_cls.transform(compose_services, caddy_entries, ctx)
+        transform_cls.transform(compose_services, ingress_entries, ctx)
 
-    return compose_services, caddy_entries, warnings
+    return compose_services, ingress_entries, warnings
 
 
 def _inject_network_aliases(compose_services: dict, network_aliases: dict) -> None:

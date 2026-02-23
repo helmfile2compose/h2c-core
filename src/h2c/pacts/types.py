@@ -27,10 +27,19 @@ class ConvertContext:
 
 
 @dataclass
-class ConvertResult:
-    """Output of a single converter."""
+class ConverterResult:
+    """Output of a Converter/IndexerConverter — no services."""
+    ingress_entries: list = field(default_factory=list)
+
+
+@dataclass
+class ProviderResult(ConverterResult):
+    """Output of a Provider — with services."""
     services: dict = field(default_factory=dict)
-    caddy_entries: list = field(default_factory=list)
+
+
+# Deprecated alias — backwards compat for third-party extensions
+ConvertResult = ProviderResult
 
 
 class Converter:
@@ -41,14 +50,14 @@ class Converter:
 
     def convert(self, kind, manifests, ctx):
         """Convert manifests of a given kind. Override in subclasses."""
-        return ConvertResult()
+        return ConverterResult()
 
 
 class IndexerConverter(Converter):
-    """Converter that populates ConvertContext fields (returns empty ConvertResult)."""
+    """Converter that populates ConvertContext fields (returns empty ConverterResult)."""
     priority: int = 50
 
 
 class Provider(Converter):
-    """Converter that produces compose services in ConvertResult."""
+    """Converter that produces compose services in ProviderResult."""
     priority: int = 500

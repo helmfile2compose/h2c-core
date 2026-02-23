@@ -1,6 +1,6 @@
 """Ingress conversion — IngressProvider abstract class, rewriter dispatch."""
 
-from h2c.pacts.types import ConvertContext, ConvertResult, Provider
+from h2c.pacts.types import ConvertContext, ProviderResult, Provider
 from h2c.pacts.ingress import IngressRewriter
 
 
@@ -39,16 +39,16 @@ class IngressProvider(Provider):
     kinds = ["Ingress"]
     priority = 900
 
-    def convert(self, _kind: str, manifests: list[dict], ctx: ConvertContext) -> ConvertResult:
+    def convert(self, _kind: str, manifests: list[dict], ctx: ConvertContext) -> ProviderResult:
         """Convert all Ingress manifests via rewriter dispatch."""
         entries = []
         for m in manifests:
             rewriter = self._find_rewriter(m, ctx)
             entries.extend(rewriter.rewrite(m, ctx))
         services = {}
-        if entries and not ctx.config.get("disableCaddy"):
+        if entries and not ctx.config.get("disable_ingress"):
             services = self.build_service(entries, ctx)
-        return ConvertResult(services=services, caddy_entries=entries)
+        return ProviderResult(services=services, ingress_entries=entries)
 
     def build_service(self, entries, ctx):
         """Build the reverse proxy compose service dict. Override in subclasses."""

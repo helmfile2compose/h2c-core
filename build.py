@@ -124,6 +124,10 @@ def main():
         lines.append("\n")
         lines.extend(thirdparty_imports)
     lines.append("\n")
+    # Register as 'h2c' module so extensions can `from h2c import ...`
+    # even when this script runs as __main__ (avoids dual-module identity issues)
+    lines.append("sys.modules.setdefault('h2c', sys.modules[__name__])\n")
+    lines.append("\n")
     lines.extend(all_bodies)
 
     # Add __main__ guard

@@ -314,13 +314,9 @@ def main():
     lines.append("\n\n# Auto-register all converter/rewriter/transform classes\n")
     lines.append("_auto_register()\n")
 
-    # Step 6: Register as 'h2c' module (needed because output file isn't named h2c.py)
-    lines.append('\n\n# Allow extensions to "from h2c import ..." at runtime\n')
-    lines.append('import types as _types\n')
-    lines.append('sys.modules.setdefault("h2c", _types.ModuleType("h2c"))\n')
-    lines.append('sys.modules["h2c"].__dict__.update(\n')
-    lines.append('    {k: v for k, v in globals().items() if not k.startswith("_")}\n')
-    lines.append(')\n')
+    # Step 6: Register as 'h2c' module so extensions can `from h2c import ...`
+    # Must be the same module object (not a copy) so mutable state (_REWRITERS etc.) is shared
+    lines.append('\n\nsys.modules.setdefault("h2c", sys.modules[__name__])\n')
 
     # Step 7: __main__ guard
     lines.append('\n\nif __name__ == "__main__":\n')
