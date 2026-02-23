@@ -1,40 +1,40 @@
-# helmfile2compose (h2c-core)
+# h2c-core
 
-Convert `helmfile template` output to `compose.yml` + `Caddyfile`.
+The bare conversion engine for [helmfile2compose](https://github.com/helmfile2compose). Convert `helmfile template` output to `compose.yml` + `Caddyfile`.
 
-Part of the [helmfile2compose](https://github.com/helmfile2compose) org. This repo contains the core converter script only. Related repos:
-- [h2c-manager](https://github.com/helmfile2compose/h2c-manager) — package manager + extension registry (`extensions.json`)
-- [helmfile2compose.github.io](https://github.com/helmfile2compose/helmfile2compose.github.io) — full documentation site
-- Extension repos: [h2c-provider-keycloak](https://github.com/helmfile2compose/h2c-provider-keycloak), [h2c-provider-servicemonitor](https://github.com/helmfile2compose/h2c-provider-servicemonitor), [h2c-converter-cert-manager](https://github.com/helmfile2compose/h2c-converter-cert-manager), [h2c-converter-trust-manager](https://github.com/helmfile2compose/h2c-converter-trust-manager), [h2c-transform-bitnami](https://github.com/helmfile2compose/h2c-transform-bitnami)
+Related repos:
+- [helmfile2compose](https://github.com/helmfile2compose/helmfile2compose) — the full distribution (core + built-in extensions)
+- [h2c-manager](https://github.com/helmfile2compose/h2c-manager) — package manager + extension registry
+- [helmfile2compose.github.io](https://github.com/helmfile2compose/helmfile2compose.github.io) — documentation site
 
 ## Package structure
 
-Python package under `src/helmfile2compose/` with three layers:
+Python package under `src/h2c/` with three layers:
 
-- **`pacts/`** — public contracts for extensions (`ConvertContext`, `ConvertResult`, `IngressRewriter`, helpers). Stable API — extensions import from here (or from `helmfile2compose` directly via re-exports).
-- **`core/`** — internal conversion engine (`constants`, `env`, `volumes`, `services`, `workloads`, `ingress`, `extensions`, `convert`). Not public API.
+- **`pacts/`** — public contracts for extensions (`ConvertContext`, `ConvertResult`, `Converter`, `Provider`, `IngressRewriter`, helpers). Stable API — extensions import from here (or from `h2c` directly via re-exports).
+- **`core/`** — internal conversion engine (`constants`, `env`, `volumes`, `services`, `ingress`, `extensions`, `convert`). Not public API.
 - **`io/`** — input/output (`parsing`, `config`, `output`). Not public API.
 - **`cli.py`** — CLI entry point.
 
-The single-file `helmfile2compose.py` is a **build artifact** produced by `build.py` (concat script). It is not committed — CI builds it on tag push and uploads as a release asset. Users and h2c-manager see no change.
+The single-file `h2c.py` is a **build artifact** produced by `build.py` (concat script). It is not committed — CI builds it on tag push and uploads as a release asset.
 
 ```bash
 # Development: run from package
-PYTHONPATH=src python -m helmfile2compose --from-dir /tmp/rendered --output-dir .
+PYTHONPATH=src python -m h2c --from-dir /tmp/rendered --output-dir .
 
-# Build single-file distribution
+# Build bare core
 python build.py
-# → helmfile2compose.py (gitignored)
+# → h2c.py (gitignored)
 
 # Validate with testsuite
-cd ../h2c-testsuite && ./run-tests.sh --local-core ../h2c-core/helmfile2compose.py
+cd ../h2c-testsuite && ./run-tests.sh --local-core ../h2c-core/h2c.py
 ```
 
 Dependency: `pyyaml`.
 
 ## Workflow
 
-Lint often: run `pylint src/helmfile2compose/` and `pyflakes src/helmfile2compose/` after any change. Fix real issues (unused imports, actual bugs, f-strings without placeholders). Pylint style warnings (too-many-locals, line-too-long, etc.) are acceptable.
+Lint often: run `PYTHONPATH=src pylint src/h2c/` and `PYTHONPATH=src pyflakes src/h2c/` after any change. Fix real issues (unused imports, actual bugs, f-strings without placeholders). Pylint style warnings (too-many-locals, line-too-long, etc.) are acceptable.
 
 **Null-safe YAML access:** `.get("key", {})` returns `None` when the key exists with an explicit `null` value (Helm conditional blocks). Always use `.get("key") or {}` / `.get("key") or []` for fields that Helm may render as null (`annotations`, `ports`, `initContainers`, `data`, `rules`, `selector`, etc.).
 
@@ -42,13 +42,13 @@ Lint often: run `pylint src/helmfile2compose/` and `pyflakes src/helmfile2compos
 
 ```bash
 # From helmfile directly (needs helmfile + helm installed)
-python3 helmfile2compose.py --helmfile-dir ~/my-platform -e compose --output-dir .
+python3 h2c.py --helmfile-dir ~/my-platform -e compose --output-dir .
 
 # From pre-rendered manifests (skip helmfile)
-python3 helmfile2compose.py --from-dir /tmp/rendered --output-dir .
+python3 h2c.py --from-dir /tmp/rendered --output-dir .
 
 # With extensions
-python3 helmfile2compose.py --helmfile-dir ~/my-platform -e compose \
+python3 h2c.py --helmfile-dir ~/my-platform -e compose \
   --extensions-dir .h2c/extensions --output-dir .
 ```
 
@@ -87,7 +87,7 @@ Three extension types, loaded from the same `--extensions-dir`:
 
 `--extensions-dir` points to a directory of `.py` files (or cloned repos with `.py` files one level deep). The loader detects each type automatically.
 
-Extensions import `ConvertContext`/`ConvertResult`/`IngressRewriter` from `helmfile2compose`. `get_ingress_class(manifest, ingress_types)` and `resolve_backend(path_entry, manifest, ctx)` are public helpers for rewriters. `apply_replacements(text, replacements)` and `resolve_env(container, configmaps, secrets, workload_name, warnings, replacements=None, service_port_map=None)` are also public — available to extensions that need string replacement or env resolution. Available extensions:
+Extensions import `ConvertContext`/`ConvertResult`/`IngressRewriter` from `h2c`. `get_ingress_class(manifest, ingress_types)` and `resolve_backend(path_entry, manifest, ctx)` are public helpers for rewriters. `apply_replacements(text, replacements)` and `resolve_env(container, configmaps, secrets, workload_name, warnings, replacements=None, service_port_map=None)` are also public — available to extensions that need string replacement or env resolution. Available extensions:
 - **keycloak** — provider: `Keycloak`, `KeycloakRealmImport` (priority 50)
 - **cert-manager** — converter: `Certificate`, `ClusterIssuer`, `Issuer` (priority 10, requires `cryptography`, incompatible with flatten-internal-urls)
 - **trust-manager** — converter: `Bundle` (priority 20, depends on cert-manager)
