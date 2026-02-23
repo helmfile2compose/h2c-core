@@ -3,7 +3,7 @@
 The bare conversion engine for [helmfile2compose](https://github.com/helmfile2compose). Convert `helmfile template` output to `compose.yml` + `Caddyfile`.
 
 Related repos:
-- [helmfile2compose](https://github.com/helmfile2compose/helmfile2compose) — the full distribution (core + built-in extensions)
+- [helmfile2compose](https://github.com/helmfile2compose/helmfile2compose) — the full distribution (core + 8 bundled extensions)
 - [h2c-manager](https://github.com/helmfile2compose/h2c-manager) — package manager + extension registry
 - [helmfile2compose.github.io](https://github.com/helmfile2compose/helmfile2compose.github.io) — documentation site
 
@@ -92,7 +92,7 @@ Three extension types, loaded from the same `--extensions-dir`:
 
 `--extensions-dir` points to a directory of `.py` files (or cloned repos with `.py` files one level deep). The loader detects each type automatically.
 
-Extensions import `ConvertContext`/`ConverterResult`/`ProviderResult`/`IngressRewriter` from `h2c` (`ConvertResult` still works as a deprecated alias). `get_ingress_class(manifest, ingress_types)` and `resolve_backend(path_entry, manifest, ctx)` are public helpers for rewriters. `apply_replacements(text, replacements)` and `resolve_env(container, configmaps, secrets, workload_name, warnings, replacements=None, service_port_map=None)` are also public — available to extensions that need string replacement or env resolution. Available extensions (each in its own repo under the helmfile2compose org — the 7 built-in extensions previously bundled in `extensions/` of the distribution are now standalone repos too):
+Extensions import `ConvertContext`/`ConverterResult`/`ProviderResult`/`IngressRewriter` from `h2c` (`ConvertResult` still works as a deprecated alias). `get_ingress_class(manifest, ingress_types)` and `resolve_backend(path_entry, manifest, ctx)` are public helpers for rewriters. `apply_replacements(text, replacements)` and `resolve_env(container, configmaps, secrets, workload_name, warnings, replacements=None, service_port_map=None)` are also public — available to extensions that need string replacement or env resolution. Available extensions (each in its own repo under the helmfile2compose org — the 8 bundled extensions are now standalone repos too):
 - **keycloak** — provider: `Keycloak`, `KeycloakRealmImport` (priority 50)
 - **cert-manager** — converter: `Certificate`, `ClusterIssuer`, `Issuer` (priority 10, requires `cryptography`, incompatible with flatten-internal-urls)
 - **trust-manager** — converter: `Bundle` (priority 20, depends on cert-manager)

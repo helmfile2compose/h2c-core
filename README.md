@@ -9,7 +9,7 @@
 
 This is the core of [helmfile2compose](https://github.com/helmfile2compose) — the spec (`pacts/`), the control plane (`core/`), the I/O layer (`io/`), and the CLI. It runs standalone, accepts `--extensions-dir`, and does nothing on its own. No built-in converters, no built-in rewriters. All manifest kinds are unknown. It is pure potential, waiting to be told what to do.
 
-**You probably want [helmfile2compose](https://github.com/helmfile2compose/helmfile2compose)** — the full distribution with built-in extensions. This repo is for custom distributions and extension development.
+**You probably want [helmfile2compose](https://github.com/helmfile2compose/helmfile2compose)** — the full distribution with 8 bundled extensions. This repo is for custom distributions and extension development.
 
 ## What it does
 
@@ -56,7 +56,7 @@ python3 h2c.py --from-dir /tmp/rendered --extensions-dir ./my-extensions --outpu
 
 | Repo | Description |
 |------|-------------|
-| [helmfile2compose](https://github.com/helmfile2compose/helmfile2compose) | Full distribution (core + built-in extensions) |
+| [helmfile2compose](https://github.com/helmfile2compose/helmfile2compose) | Full distribution (core + 8 bundled extensions) |
 | [h2c-manager](https://github.com/helmfile2compose/h2c-manager) | Package manager + extension registry |
 | [helmfile2compose.github.io](https://github.com/helmfile2compose/helmfile2compose.github.io) | Documentation site |
 
