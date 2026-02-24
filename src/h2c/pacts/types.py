@@ -46,7 +46,7 @@ ConvertResult = ProviderResult
 class Converter:
     """Base class for all converters — indexers, providers, and custom extensions."""
     name: str = ""
-    kinds: list = []
+    kinds: tuple = ()
     priority: int = 1000
 
     def convert(self, kind, manifests, ctx):
