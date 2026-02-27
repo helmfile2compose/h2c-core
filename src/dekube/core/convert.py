@@ -148,7 +148,7 @@ def convert(manifests: dict[str, list[dict]], config: dict,
     else:
         for vol_name in sorted(config_volumes):
             if vol_name not in ctx.pvc_names:
-                warnings.append(f"volume '{vol_name}' in helmfile2compose.yaml not referenced by any PVC — stale?")
+                warnings.append(f"volume '{vol_name}' in dekube.yaml not referenced by any PVC — stale?")
 
     _emit_kind_warnings(manifests, warnings)
     _apply_overrides(compose_services, config, ctx.secrets, warnings)

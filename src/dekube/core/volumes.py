@@ -52,7 +52,7 @@ def _convert_pvc_mount(claim: str, mount_path: str, pvc_names: set,
         return f"{resolved}:{mount_path}"
     if vol_cfg is not None:
         return f"{claim}:{mount_path}"
-    warnings.append(f"PVC '{claim}' has no mapping in helmfile2compose.yaml — add it manually")
+    warnings.append(f"PVC '{claim}' has no mapping in dekube.yaml — add it manually")
     return f"{claim}:{mount_path}"
 
 
