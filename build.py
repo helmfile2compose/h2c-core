@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Concatenate the h2c core engine into a single-file h2c.py."""
+"""Concatenate the dekube core engine into a single-file dekube.py."""
 
 import re
 import subprocess
 import sys
 from pathlib import Path
 
-SRC = Path(__file__).parent / "src" / "h2c"
-OUTPUT = Path(__file__).parent / "h2c.py"
+SRC = Path(__file__).parent / "src" / "dekube"
+OUTPUT = Path(__file__).parent / "dekube.py"
 
 # Module order respects the dependency graph (no forward references).
 # Bare engine only — no extensions/.
@@ -30,11 +30,11 @@ MODULES = [
 
 # Imports to strip (internal cross-references, any indentation level)
 INTERNAL_IMPORT_RE = re.compile(
-    r'^\s*(?:from h2c[\w.]* import .+|import h2c[\w.]*)\s*$'
+    r'^\s*(?:from (?:h2c|dekube)[\w.]* import .+|import (?:h2c|dekube)[\w.]*)\s*$'
 )
 
 SHEBANG = "#!/usr/bin/env python3\n"
-DOCSTRING = '"""h2c — bare conversion engine (no built-in extensions)."""\n'
+DOCSTRING = '"""dekube — bare conversion engine (no built-in extensions)."""\n'
 PYLINT_DISABLE = "# pylint: disable=too-many-locals\n"
 
 
@@ -124,8 +124,10 @@ def main():
         lines.append("\n")
         lines.extend(thirdparty_imports)
     lines.append("\n")
-    # Register as 'h2c' module so extensions can `from h2c import ...`
+    # Register as 'dekube' module so extensions can `from dekube import ...`
     # even when this script runs as __main__ (avoids dual-module identity issues)
+    lines.append("sys.modules.setdefault('dekube', sys.modules[__name__])\n")
+    # Compat shim: extensions using `from h2c import ...` still work
     lines.append("sys.modules.setdefault('h2c', sys.modules[__name__])\n")
     lines.append("\n")
     lines.extend(all_bodies)

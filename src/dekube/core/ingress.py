@@ -1,7 +1,7 @@
 """Ingress conversion — IngressProvider abstract class, rewriter dispatch."""
 
-from h2c.pacts.types import ConvertContext, ProviderResult, Provider
-from h2c.pacts.ingress import IngressRewriter
+from dekube.pacts.types import ConvertContext, ProviderResult, Provider
+from dekube.pacts.ingress import IngressRewriter
 
 
 class _NullRewriter(IngressRewriter):

@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-from h2c.core.ingress import _is_rewriter_class
+from dekube.core.ingress import _is_rewriter_class
 
 
 def _discover_extension_files(extensions_dir):
@@ -47,7 +47,7 @@ def _load_module(filepath):
     parent = str(Path(filepath).parent)
     if parent not in sys.path:
         sys.path.insert(0, parent)
-    mod_name = f"h2c_op_{Path(filepath).stem}"
+    mod_name = f"dekube_op_{Path(filepath).stem}"
     spec = importlib.util.spec_from_file_location(mod_name, filepath)
     if spec is None or spec.loader is None:
         return None

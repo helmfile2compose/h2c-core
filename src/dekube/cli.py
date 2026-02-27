@@ -4,15 +4,15 @@ import argparse
 import os
 import sys
 
-from h2c.core.constants import WORKLOAD_KINDS, AUTO_EXCLUDE_PATTERNS
-from h2c.core.convert import (
+from dekube.core.constants import WORKLOAD_KINDS, AUTO_EXCLUDE_PATTERNS
+from dekube.core.convert import (
     convert, _CONVERTERS, _TRANSFORMS, CONVERTED_KINDS,
 )
-from h2c.core.ingress import _REWRITERS, IngressProvider
-from h2c.core.extensions import _load_extensions, _register_extensions
-from h2c.io.parsing import run_helmfile_template, parse_manifests, _infer_namespaces
-from h2c.io.config import load_config, save_config
-from h2c.io.output import write_compose, emit_warnings
+from dekube.core.ingress import _REWRITERS, IngressProvider
+from dekube.core.extensions import _load_extensions, _register_extensions
+from dekube.io.parsing import run_helmfile_template, parse_manifests, _infer_namespaces
+from dekube.io.config import load_config, save_config
+from dekube.io.output import write_compose, emit_warnings
 
 
 def _init_first_run(config: dict, manifests: dict, args) -> None:
@@ -35,7 +35,7 @@ def _init_first_run(config: dict, manifests: dict, args) -> None:
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Convert helmfile template output to compose.yml + Caddyfile"
+        description="Convert Kubernetes manifests to compose.yml + Caddyfile"
     )
     parser.add_argument(
         "--helmfile-dir", default=".",
@@ -51,7 +51,7 @@ def main():
     )
     parser.add_argument(
         "--output-dir", default=".",
-        help="Where to write compose.yml, Caddyfile, and helmfile2compose.yaml (default: .)",
+        help="Where to write compose.yml, Caddyfile, and dekube.yaml (default: .)",
     )
     parser.add_argument(
         "--compose-file", default="compose.yml",
@@ -59,7 +59,7 @@ def main():
     )
     parser.add_argument(
         "--extensions-dir",
-        help="Directory containing h2c extension modules (converters, transforms, rewriters)",
+        help="Directory containing dekube extension modules (converters, transforms, rewriters)",
     )
     args = parser.parse_args()
 
@@ -79,10 +79,20 @@ def main():
     kinds = {k: len(v) for k, v in manifests.items()}
     print(f"Parsed manifests: {kinds}", file=sys.stderr)
 
-    # Step 3: load config
-    config_path = os.path.join(args.output_dir, "helmfile2compose.yaml")
+    # Step 3: load config (dekube.yaml, with fallback to legacy helmfile2compose.yaml)
+    config_path = os.path.join(args.output_dir, "dekube.yaml")
+    legacy_path = os.path.join(args.output_dir, "helmfile2compose.yaml")
+    if not os.path.exists(config_path) and os.path.exists(legacy_path):
+        print(f"Found {legacy_path} but no dekube.yaml — reading it, "
+              "but consider renaming it", file=sys.stderr)
+        config_path = legacy_path
+    elif os.path.exists(config_path) and os.path.exists(legacy_path):
+        print(f"Stale helmfile2compose.yaml found alongside dekube.yaml "
+              "— ignoring it, only dekube.yaml is used", file=sys.stderr)
     first_run = not os.path.exists(config_path)
     config = load_config(config_path)
+    # Always write new config as dekube.yaml
+    config_path = os.path.join(args.output_dir, "dekube.yaml")
 
     if first_run:
         _init_first_run(config, manifests, args)
@@ -120,7 +130,7 @@ def main():
         save_config(config_path, config)
         print(f"Wrote {config_path}", file=sys.stderr)
         print(
-            "\n⚠ First run — helmfile2compose.yaml was created and likely needs manual edits.\n"
+            "\n⚠ First run — dekube.yaml was created and likely needs manual edits.\n"
             "  Review exclude list, volume mappings, and re-run.",
             file=sys.stderr,
         )

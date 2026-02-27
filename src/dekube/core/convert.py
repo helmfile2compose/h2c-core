@@ -3,16 +3,16 @@
 import inspect
 import sys
 
-from h2c.pacts.types import (
+from dekube.pacts.types import (
     ConvertContext, Converter, IndexerConverter, Provider,
 )
-from h2c.pacts.ingress import IngressRewriter
-from h2c.pacts.helpers import _secret_value
-from h2c.core.constants import (
+from dekube.pacts.ingress import IngressRewriter
+from dekube.pacts.helpers import _secret_value
+from dekube.core.constants import (
     UNSUPPORTED_KINDS, IGNORED_KINDS, _SECRET_REF_RE,
 )
-from h2c.core.env import _postprocess_env
-from h2c.core.services import _build_network_aliases
+from dekube.core.env import _postprocess_env
+from dekube.core.services import _build_network_aliases
 
 # No built-in converters — distributions/extensions populate this
 _CONVERTERS = []
@@ -200,8 +200,8 @@ def _auto_register() -> None:
     Populates _CONVERTERS, _TRANSFORMS, _REWRITERS (from core.ingress), and CONVERTED_KINDS.
     Crashes on duplicate kind claims.
     """
-    from h2c.core.ingress import _REWRITERS, _is_rewriter_class, IngressProvider
-    from h2c.core.extensions import _is_converter_class, _is_transform_class
+    from dekube.core.ingress import _REWRITERS, _is_rewriter_class, IngressProvider
+    from dekube.core.extensions import _is_converter_class, _is_transform_class
 
     skip = _BASE_CLASSES + (IngressProvider,)
     caller_globals = inspect.stack()[1][0].f_globals

@@ -2,8 +2,8 @@
 
 import re
 
-from h2c.pacts.helpers import apply_replacements, _secret_value
-from h2c.core.constants import _K8S_VAR_REF_RE, _URL_BOUNDARY
+from dekube.pacts.helpers import apply_replacements, _secret_value
+from dekube.core.constants import _K8S_VAR_REF_RE, _URL_BOUNDARY
 
 
 def _apply_port_remap(text: str, service_port_map: dict) -> str:

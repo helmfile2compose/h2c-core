@@ -1,4 +1,4 @@
-"""Configuration file handling — load/save helmfile2compose.yaml."""
+"""Configuration file handling — load/save dekube.yaml."""
 
 import os
 import sys
@@ -39,7 +39,7 @@ def _migrate_config(cfg: dict) -> bool:
 
 
 def load_config(path: str) -> dict:
-    """Load helmfile2compose.yaml or return empty config."""
+    """Load dekube.yaml (or legacy helmfile2compose.yaml) or return empty config."""
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
@@ -56,8 +56,8 @@ def load_config(path: str) -> dict:
 
 
 def save_config(path: str, config: dict) -> None:
-    """Write helmfile2compose.yaml."""
-    header = "# Configuration descriptor for https://github.com/helmfile2compose\n\n"
+    """Write dekube.yaml."""
+    header = "# Configuration descriptor for https://dekube.io\n\n"
     with open(path, "w", encoding="utf-8") as f:
         f.write(header)
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)

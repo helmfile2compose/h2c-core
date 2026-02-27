@@ -2,13 +2,13 @@
 """Build a distribution single-file script from a base + extensions.
 
 Three modes for the base:
-  # Local dev — read core sources directly from h2c-core package
-  python build-distribution.py helmfile2compose --extensions-dir ./extensions --core-dir ../h2c-core
+  # Local dev — read core sources directly from dekube-engine package
+  python build-distribution.py helmfile2compose --extensions-dir ./extensions --core-dir ../dekube-engine
 
   # Local — use a pre-built .py as base
   python build-distribution.py kubernetes2simple --extensions-dir ./extensions --base ../helmfile2compose/helmfile2compose.py
 
-  # CI — fetch a distribution from GitHub releases (default: core latest)
+  # CI — fetch a distribution from GitHub releases (default: engine latest)
   python build-distribution.py helmfile2compose --extensions-dir ./extensions
   python build-distribution.py kubernetes2simple --extensions-dir ./extensions --base-distribution helmfile2compose
 """
@@ -22,12 +22,12 @@ import sys
 import urllib.request
 from pathlib import Path
 
-# Imports to strip (internal cross-references from h2c package)
+# Imports to strip (internal cross-references from dekube/h2c package)
 INTERNAL_IMPORT_RE = re.compile(
-    r'^\s*(?:from h2c[\w.]* import .+|import h2c[\w.]*)\s*$'
+    r'^\s*(?:from (?:h2c|dekube)[\w.]* import .+|import (?:h2c|dekube)[\w.]*)\s*$'
 )
 
-# h2c-core's module list (for --core-dir local mode)
+# dekube-engine's module list (for --core-dir local mode)
 CORE_MODULES = [
     "core/constants.py",
     "pacts/types.py",
@@ -50,7 +50,7 @@ PYLINT_DISABLE = "# pylint: disable=too-many-locals\n"
 
 DISTRIBUTIONS_URL = (
     "https://raw.githubusercontent.com/"
-    "helmfile2compose/h2c-manager/main/distributions.json"
+    "dekubeio/dekube-manager/main/distributions.json"
 )
 
 
@@ -121,7 +121,7 @@ def strip_tail(text: str) -> str:
 
 
 def fetch_distributions_registry() -> dict:
-    """Fetch and parse distributions.json from h2c-manager."""
+    """Fetch and parse distributions.json from dekube-manager."""
     try:
         with urllib.request.urlopen(DISTRIBUTIONS_URL) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -189,8 +189,8 @@ def discover_extensions(extensions_dir: Path) -> list[Path]:
 
 
 def build_core_body_from_local(core_dir: Path) -> tuple[dict[str, str], list[str]]:
-    """Read core sources from a local h2c-core checkout."""
-    src_dir = core_dir / "src" / "h2c"
+    """Read core sources from a local dekube-engine checkout."""
+    src_dir = core_dir / "src" / "dekube"
     if not src_dir.exists():
         print(f"Error: {src_dir} not found", file=sys.stderr)
         sys.exit(1)
@@ -250,17 +250,17 @@ def main():
     parser.add_argument("--extensions-dir", type=Path, required=True,
                         help="Directory containing extension .py files")
     parser.add_argument("--core-dir", type=Path,
-                        help="Path to local h2c-core repo (reads package sources directly)")
+                        help="Path to local dekube-engine repo (reads package sources directly)")
     parser.add_argument("--base", type=Path,
                         help="Path to a pre-built .py to use as base")
-    parser.add_argument("--base-distribution", default="core",
-                        help="Distribution name from registry (default: core)")
+    parser.add_argument("--base-distribution", default="engine",
+                        help="Distribution name from registry (default: engine)")
     parser.add_argument("--base-version", default="latest",
                         help="Distribution version to fetch (default: latest)")
     args = parser.parse_args()
 
     output = Path(args.name + ".py")
-    docstring = f'"""{args.name} — convert helmfile template output to compose.yml + Caddyfile."""\n'
+    docstring = f'"""{args.name} — convert Kubernetes manifests to compose.yml + Caddyfile."""\n'
 
     # Step 1: Build base body
     if args.core_dir:
@@ -314,9 +314,11 @@ def main():
     lines.append("\n\n# Auto-register all converter/rewriter/transform classes\n")
     lines.append("_auto_register()\n")
 
-    # Step 6: Register as 'h2c' module so extensions can `from h2c import ...`
+    # Step 6: Register as 'dekube' module so extensions can `from dekube import ...`
     # Must be the same module object (not a copy) so mutable state (_REWRITERS etc.) is shared
-    lines.append('\n\nsys.modules.setdefault("h2c", sys.modules[__name__])\n')
+    lines.append('\n\nsys.modules.setdefault("dekube", sys.modules[__name__])\n')
+    # Compat shim: extensions using `from h2c import ...` still work
+    lines.append('sys.modules.setdefault("h2c", sys.modules[__name__])\n')
 
     # Step 7: __main__ guard
     lines.append('\n\nif __name__ == "__main__":\n')
