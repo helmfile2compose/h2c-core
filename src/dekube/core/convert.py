@@ -113,11 +113,16 @@ def convert(manifests: dict[str, list[dict]], config: dict,
     )
 
     # Dispatch to converters in priority order
-    extensions_config = config.get("extensions", {})
+    extensions_config = config.get("extensions") or {}
     compose_services: dict = {}
     ingress_entries: list[dict] = []
     for converter in sorted(_CONVERTERS, key=lambda c: getattr(c, 'priority', 1000)):
-        ctx.extension_config = extensions_config.get(getattr(converter, 'name', ''), {})
+        ext_name = getattr(converter, 'name', '')
+        ext_conf = extensions_config.get(ext_name) or {}
+        if not ext_conf.get("enabled", True):
+            print(f"Extension disabled: {ext_name}", file=sys.stderr)
+            continue
+        ctx.extension_config = ext_conf
         for kind in converter.kinds:
             result = converter.convert(kind, manifests.get(kind, []), ctx)
             services = getattr(result, 'services', None)
@@ -152,6 +157,11 @@ def convert(manifests: dict[str, list[dict]], config: dict,
 
     # Run transforms (post-processing hooks) after all alias injection
     for transform_cls in _TRANSFORMS:
+        ext_name = getattr(transform_cls, 'name', '')
+        ext_conf = extensions_config.get(ext_name) or {}
+        if not ext_conf.get("enabled", True):
+            print(f"Transform disabled: {ext_name}", file=sys.stderr)
+            continue
         transform_cls.transform(compose_services, ingress_entries, ctx)
 
     return compose_services, ingress_entries, warnings
