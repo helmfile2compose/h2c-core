@@ -1,6 +1,6 @@
 # dekube-engine
 
-The bare conversion engine for [dekube](https://dekube.io). Convert `helmfile template` output to `compose.yml` + `Caddyfile`.
+The bare conversion engine for [dekube](https://dekube.io). Convert Kubernetes manifests to `compose.yml` + whatever configfile your proxy server will use.
 
 Related repos:
 - [helmfile2compose](https://github.com/dekubeio/helmfile2compose) — the full distribution (core + 8 bundled extensions)
