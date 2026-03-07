@@ -18,7 +18,7 @@ Python package under `src/dekube/` with three layers:
 
 The single-file `dekube.py` is a **build artifact** produced by `build.py` (concat script). It is not committed — CI builds it on tag push and uploads as a release asset. Both `build.py` and `build-distribution.py` inject `sys.modules.setdefault('dekube', ...)` (+ a compat shim for `'h2c'`) at the top of the output — this registers the running module as `dekube` so that runtime-loaded extensions (`--extensions-dir`) resolve `from dekube import ...` to the same module instance. Without it, Python's `__main__` vs module double-import creates split identity (`__main__.ProviderResult` ≠ `dekube.ProviderResult`).
 
-`__init__.py` re-exports the pacts API plus selected core helpers used by built-in extensions: `_build_alias_map`, `_build_service_port_map`, `_resolve_named_port`, `_convert_command`, `_convert_volume_mounts`, `_build_vol_map`. These are semi-public — stable enough for built-in extensions, but not guaranteed for third-party use.
+`__init__.py` re-exports the pacts API plus core helpers promoted to public API: `build_alias_map`, `build_service_port_map`, `resolve_named_port`, `convert_command`, `convert_volume_mounts`, `secret_value`. Deprecated `_`-prefixed aliases are also exported for backward compat. `_build_vol_map` remains internal (only used by `convert_volume_mounts`).
 
 ```bash
 # Development: run from package
@@ -71,7 +71,7 @@ Flags: `--helmfile-dir`, `-e`/`--environment`, `--from-dir`, `--output-dir`, `--
   - **Service (ClusterIP)** → hostname rewriting (K8s Service name → compose service name) in env vars, Caddyfile, configmap files
   - **Service (ExternalName)** → resolved through alias chain (e.g. `docs-media` → minio FQDN → `minio`)
   - **Service (NodePort/LoadBalancer)** → `ports:` mapping
-  - **Ingress** → ingress service + Caddyfile blocks (`reverse_proxy`), dispatched to `IngressRewriter` classes by `ingressClassName`. Backend SSL via TLS transport, specific paths before catch-all. `extra_directives` for raw Caddy directives. Built-in: `HAProxyRewriter`.
+  - **Ingress** → ingress service + config file, dispatched to `IngressRewriter` classes by `ingressClassName`. Backend SSL via TLS transport, specific paths before catch-all. Structured entry fields: `response_headers`, `max_body_size`. `extra_directives` deprecated (Caddy provider still reads it for third-party compat). Built-in: `HAProxyRewriter`.
   - **PVC** → named volumes + `dekube.yaml` config
 - **Init containers** → separate compose services with `restart: on-failure`, named `{workload}-init-{container-name}`
 - **Sidecar containers** (`containers[1:]`) → separate compose services with `network_mode: container:<main>` (shared network namespace)
@@ -177,6 +177,17 @@ services:                 # custom services added to compose (not from K8s)
 - Real `helmfile template` output from mijn-bureau-infra (~30 services, nested helmfiles, Bitnami charts)
 - `docker compose config` validates generated output for all projects
 - Regression test suite: dekube-testsuite compares pinned reference versions against latest across all extension combos
+
+## Backward compatibility
+
+Behaviors maintained for third-party extensions and legacy configs:
+
+1. **`import h2c`** — `sys.modules.setdefault("h2c", ...)` in `build.py` / `build-distribution.py`
+2. **`helmfile2compose.yaml`** — fallback if `dekube.yaml` absent (`cli.py`), warning printed
+3. **`ConvertResult`** — alias for `ProviderResult` (`pacts/types.py`)
+4. **Config key migration** — `_migrate_config()` in `io/config.py` (5 legacy keys auto-renamed)
+5. **`_`-prefixed helper aliases** — `_secret_value`, `_convert_command`, `_convert_volume_mounts`, `_build_alias_map`, `_build_service_port_map`, `_resolve_named_port` still exported in `__all__` as aliases for the unprefixed public names
+6. **`extra_directives`** — deprecated ingress entry field, still read by CaddyProvider for third-party rewriter compat
 
 ## Out of scope
 

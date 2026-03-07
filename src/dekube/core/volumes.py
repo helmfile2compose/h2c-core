@@ -2,7 +2,7 @@
 
 import os
 
-from dekube.pacts.helpers import apply_replacements, _secret_value
+from dekube.pacts.helpers import apply_replacements, secret_value
 from dekube.core.env import _apply_port_remap
 
 
@@ -107,7 +107,7 @@ def _generate_secret_files(sec_name: str, secret: dict, items: list | None,
         generated_secrets.add(sec_name)
         os.makedirs(abs_dir, exist_ok=True)
         for key, out_name in _resolve_secret_keys(secret, items):
-            val = _secret_value(secret, key)
+            val = secret_value(secret, key)
             if val is None:
                 warnings.append(f"Secret '{sec_name}' key '{key}' could not be decoded — skipped")
                 continue
@@ -127,7 +127,7 @@ def _convert_data_mount(data_dir: str, vm: dict) -> str:
     return f"{data_dir}:{mount_path}:ro"
 
 
-def _convert_volume_mounts(volume_mounts: list, pod_volumes: list, pvc_names: set,
+def convert_volume_mounts(volume_mounts: list, pod_volumes: list, pvc_names: set,
                            config: dict, workload_name: str, warnings: list[str],
                            configmaps: dict | None = None, secrets: dict | None = None,
                            output_dir: str = ".", generated_cms: set | None = None,
@@ -168,3 +168,7 @@ def _convert_volume_mounts(volume_mounts: list, pod_volumes: list, pvc_names: se
             result.append(_convert_data_mount(sec_dir, vm))
 
     return result
+
+
+# Backward compat alias (deprecated)
+_convert_volume_mounts = convert_volume_mounts

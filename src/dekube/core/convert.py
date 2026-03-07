@@ -7,7 +7,7 @@ from dekube.pacts.types import (
     ConvertContext, Converter, IndexerConverter, Provider,
 )
 from dekube.pacts.ingress import IngressRewriter
-from dekube.pacts.helpers import _secret_value
+from dekube.pacts.helpers import secret_value
 from dekube.core.constants import (
     UNSUPPORTED_KINDS, IGNORED_KINDS, _SECRET_REF_RE,
 )
@@ -57,7 +57,7 @@ def _resolve_secret_refs(obj, secrets: dict, warnings: list[str]):
             if sec is None:
                 warnings.append(f"$secret ref: Secret '{sec_name}' not found")
                 return m.group(0)
-            val = _secret_value(sec, sec_key)
+            val = secret_value(sec, sec_key)
             if val is None:
                 warnings.append(f"$secret ref: key '{sec_key}' not found in Secret '{sec_name}'")
                 return m.group(0)
@@ -151,7 +151,6 @@ def convert(manifests: dict[str, list[dict]], config: dict,
                 warnings.append(f"volume '{vol_name}' in dekube.yaml not referenced by any PVC — stale?")
 
     _emit_kind_warnings(manifests, warnings)
-    _apply_overrides(compose_services, config, ctx.secrets, warnings)
 
     _truncate_hostnames(compose_services)
 
@@ -163,6 +162,9 @@ def convert(manifests: dict[str, list[dict]], config: dict,
             print(f"Transform disabled: {ext_name}", file=sys.stderr)
             continue
         transform_cls.transform(compose_services, ingress_entries, ctx)
+
+    # Overrides run after transforms so transform-created services can be overridden
+    _apply_overrides(compose_services, config, ctx.secrets, warnings)
 
     return compose_services, ingress_entries, warnings
 

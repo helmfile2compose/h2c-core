@@ -3,7 +3,7 @@
 from dekube.core.constants import WORKLOAD_KINDS, _K8S_DNS_RE
 
 
-def _resolve_named_port(name: str, container_ports: list) -> int | str:
+def resolve_named_port(name: str, container_ports: list) -> int | str:
     """Resolve a named port (e.g. 'http') to its numeric containerPort."""
     for cp in container_ports:
         if cp.get("name") == name:
@@ -29,7 +29,7 @@ def _match_selector(selector: dict, workloads: list[tuple[dict, str]]) -> str | 
     return None
 
 
-def _build_alias_map(manifests: dict, services_by_selector: dict) -> dict[str, str]:
+def build_alias_map(manifests: dict, services_by_selector: dict) -> dict[str, str]:
     """Build a map of K8s Service names → compose service names.
 
     Covers two cases:
@@ -92,7 +92,7 @@ def _build_network_aliases(services_by_selector: dict,
     return aliases
 
 
-def _build_service_port_map(manifests: dict, services_by_selector: dict) -> dict:
+def build_service_port_map(manifests: dict, services_by_selector: dict) -> dict:
     """Build a map of (service_name, service_port) → container_port.
 
     Ingress backends reference Service ports, but in compose we talk directly
@@ -125,7 +125,7 @@ def _build_service_port_map(manifests: dict, services_by_selector: dict) -> dict
                 continue
             target = sp.get("targetPort", svc_port_num)
             if isinstance(target, str):
-                target = _resolve_named_port(target, matched_ports)
+                target = resolve_named_port(target, matched_ports)
             port_map[(svc_name, svc_port_num)] = target
             if sp.get("name"):
                 port_map[(svc_name, sp["name"])] = target
@@ -147,3 +147,9 @@ def _expand_fqdn_keys(port_map: dict, services_by_selector: dict) -> None:
                      f"{svc_name}.{ns}"):
             fqdn_entries[(fqdn, svc_port)] = container_port
     port_map.update(fqdn_entries)
+
+
+# Backward compat aliases (deprecated)
+_resolve_named_port = resolve_named_port
+_build_alias_map = build_alias_map
+_build_service_port_map = build_service_port_map

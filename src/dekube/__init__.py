@@ -10,13 +10,21 @@ from dekube.pacts.types import (
     Converter, IndexerConverter, Provider,
 )
 from dekube.pacts.ingress import IngressRewriter, get_ingress_class, resolve_backend
-from dekube.pacts.helpers import apply_replacements, _secret_value
-from dekube.core.env import resolve_env, _convert_command
+from dekube.pacts.helpers import apply_replacements, secret_value
+from dekube.core.env import resolve_env, convert_command
 from dekube.core.ingress import IngressProvider
-from dekube.core.volumes import _convert_volume_mounts, _build_vol_map
+from dekube.core.volumes import convert_volume_mounts
 from dekube.core.services import (
-    _build_alias_map, _build_service_port_map, _resolve_named_port,
+    build_alias_map, build_service_port_map, resolve_named_port,
 )
+
+# Backward compat aliases (deprecated — use unprefixed names)
+_secret_value = secret_value
+_convert_command = convert_command
+_convert_volume_mounts = convert_volume_mounts
+_build_alias_map = build_alias_map
+_build_service_port_map = build_service_port_map
+_resolve_named_port = resolve_named_port
 
 __all__ = [
     # Types & base classes
@@ -34,11 +42,17 @@ __all__ = [
     "resolve_backend",
     "apply_replacements",
     "resolve_env",
-    "_secret_value",
+    "secret_value",
     # K8s-to-compose conversion primitives (pod specs, volumes, ports, commands)
+    "convert_command",
+    "convert_volume_mounts",
+    "build_alias_map",
+    "build_service_port_map",
+    "resolve_named_port",
+    # Backward compat aliases (deprecated — use unprefixed names)
+    "_secret_value",
     "_convert_command",
     "_convert_volume_mounts",
-    "_build_vol_map",
     "_build_alias_map",
     "_build_service_port_map",
     "_resolve_named_port",

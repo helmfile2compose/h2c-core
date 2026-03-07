@@ -2,7 +2,7 @@
 
 import re
 
-from dekube.pacts.helpers import apply_replacements, _secret_value
+from dekube.pacts.helpers import apply_replacements, secret_value
 from dekube.core.constants import _K8S_VAR_REF_RE, _URL_BOUNDARY
 
 
@@ -109,7 +109,7 @@ def _resolve_env_entry(entry: dict, configmaps: dict, secrets: dict,
         )
     elif "secretKeyRef" in vf:
         ref = vf["secretKeyRef"]
-        val = _secret_value(secrets.get(ref.get("name", ""), {}), ref.get("key", ""))
+        val = secret_value(secrets.get(ref.get("name", ""), {}), ref.get("key", ""))
         if val is not None:
             return {"name": name, "value": val}
         warnings.append(
@@ -143,7 +143,7 @@ def _resolve_envfrom(envfrom_list: list, configmaps: dict, secrets: dict) -> lis
         elif "secretRef" in ef:
             sec = secrets.get(ef["secretRef"].get("name", ""), {})
             for k in sec.get("data") or {}:
-                val = _secret_value(sec, k)
+                val = secret_value(sec, k)
                 if val is not None:
                     env_vars.append({"name": k, "value": val})
     return env_vars
@@ -208,7 +208,7 @@ def resolve_env(container: dict, configmaps: dict[str, dict], secrets: dict[str,
     return env_vars
 
 
-def _convert_command(container: dict, env_dict: dict[str, str]) -> dict:
+def convert_command(container: dict, env_dict: dict[str, str]) -> dict:
     """Convert K8s command/args to compose entrypoint/command with variable resolution."""
     result = {}
     if "command" in container:
@@ -218,3 +218,7 @@ def _convert_command(container: dict, env_dict: dict[str, str]) -> dict:
         resolved = _resolve_k8s_var_refs(container["args"], env_dict)
         result["command"] = _escape_shell_vars_for_compose(resolved)
     return result
+
+
+# Backward compat alias (deprecated)
+_convert_command = convert_command

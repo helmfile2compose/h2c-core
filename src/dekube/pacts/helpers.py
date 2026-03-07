@@ -10,7 +10,7 @@ def apply_replacements(text: str, replacements: list[dict]) -> str:
     return text
 
 
-def _secret_value(secret: dict, key: str) -> str | None:
+def secret_value(secret: dict, key: str) -> str | None:
     """Get a decoded value from a K8s Secret (base64 data or plain stringData)."""
     # stringData is plain text (rare in rendered output, but possible)
     val = (secret.get("stringData") or {}).get(key)
@@ -24,3 +24,7 @@ def _secret_value(secret: dict, key: str) -> str | None:
         except (ValueError, UnicodeDecodeError):
             return val  # fallback: return raw if decode fails
     return None
+
+
+# Backward compat alias (deprecated)
+_secret_value = secret_value

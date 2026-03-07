@@ -17,11 +17,14 @@ class IngressRewriter:
         return False
 
     def rewrite(self, manifest: dict, ctx: ConvertContext) -> list[dict]:
-        """Convert one Ingress manifest to Caddy entries.
+        """Convert one Ingress manifest to structured ingress entries.
 
         Each entry dict must have: host, path, upstream, scheme.
-        Optional: server_ca_secret, server_sni, strip_prefix, extra_directives.
-        extra_directives is a list of raw Caddy directive strings.
+        Optional: server_ca_secret, server_sni, strip_prefix.
+        Structured fields: response_headers (dict[str, str]),
+            max_body_size (str, e.g. "100M").
+        Deprecated: extra_directives (list[str]) — provider-specific
+            escape hatch, kept for third-party rewriter backward compat.
         """
         return []
 
