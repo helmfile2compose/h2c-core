@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass, field
 
-# Well-known named ports (used by resolve_backend in pacts/ingress.py)
+# Named ports used by resolve_backend for Ingress backends.
+# Extend as needed for additional named service ports.
 WELL_KNOWN_PORTS = {"http": 80, "https": 443, "grpc": 50051}
 
 

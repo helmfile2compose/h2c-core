@@ -47,6 +47,7 @@ def _load_module(filepath):
     parent = str(Path(filepath).parent)
     if parent not in sys.path:
         sys.path.insert(0, parent)
+    # Prefix avoids collisions with stdlib modules (e.g. "secrets" → "dekube_op_secrets")
     mod_name = f"dekube_op_{Path(filepath).stem}"
     spec = importlib.util.spec_from_file_location(mod_name, filepath)
     if spec is None or spec.loader is None:

@@ -39,7 +39,11 @@ PYLINT_DISABLE = "# pylint: disable=too-many-locals\n"
 
 
 def collect_imports_and_body(path: Path) -> tuple[list[str], list[str]]:
-    """Split a module into stdlib/external imports and body lines."""
+    """Split a module into stdlib/external imports and body lines.
+
+    Keep in sync with build-distribution.py (duplicated intentionally —
+    build-distribution.py must be a standalone single-file script for CI).
+    """
     imports = []
     body = []
     in_docstring = False

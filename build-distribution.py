@@ -14,6 +14,7 @@ Three modes for the base:
 """
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -55,7 +56,11 @@ DISTRIBUTIONS_URL = (
 
 
 def collect_imports_and_body(path: Path) -> tuple[list[str], list[str]]:
-    """Split a module into stdlib/external imports and body lines."""
+    """Split a module into stdlib/external imports and body lines.
+
+    Keep in sync with build.py (duplicated intentionally —
+    this file must be a standalone single-file script for CI).
+    """
     imports = []
     body = []
     in_docstring = False
@@ -147,33 +152,37 @@ def fetch_base_release(repo: str, filename: str, version: str = "latest") -> str
 
 
 def parse_flat_script(text: str) -> tuple[dict[str, str], list[str]]:
-    """Parse a flat .py script into deduplicated imports + body lines."""
+    """Parse a flat .py script into deduplicated imports + body lines.
+
+    Uses ast.parse to reliably extract imports (handles multi-line imports,
+    parenthesized groups, etc.) then takes the body as everything after
+    the last import line.
+    """
+    tree = ast.parse(text)
+
+    # Collect import line ranges from AST
+    import_end_line = 0
     all_imports: dict[str, str] = {}
-    body: list[str] = []
-    past_header = False
-    in_imports = True
+    lines = text.splitlines(keepends=True)
 
-    for line in text.splitlines(keepends=True):
-        stripped = line.strip()
-        if not past_header:
-            if (stripped.startswith("#!") or stripped.startswith('"""')
-                    or stripped.startswith("# pylint") or not stripped):
-                continue
-            past_header = True
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            # Reconstruct import statement from source lines
+            start = node.lineno - 1
+            end = node.end_lineno  # 1-indexed end, so this is exclusive
+            import_end_line = max(import_end_line, end)
+            stmt = "".join(lines[start:end])
+            key = stmt.strip()
+            if key not in all_imports:
+                all_imports[key] = stmt
 
-        if in_imports:
-            if stripped.startswith(("import ", "from ")):
-                key = stripped
-                if key not in all_imports:
-                    all_imports[key] = line
-                continue
-            if not stripped:
-                continue
-            in_imports = False
+    # Skip header (shebang, docstring, pylint) + blank lines between
+    # last import and body
+    body_start = import_end_line
+    while body_start < len(lines) and not lines[body_start].strip():
+        body_start += 1
 
-        body.append(line)
-
-    return all_imports, body
+    return all_imports, lines[body_start:]
 
 
 def discover_extensions(extensions_dir: Path) -> list[Path]:

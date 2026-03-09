@@ -243,6 +243,10 @@ def _auto_register() -> None:
                 sys.exit(1)
             kind_owners[k] = type(c).__name__
 
+    if not converters and not transforms and not rewriters:
+        print("Warning: _auto_register() found no converter, transform, "
+              "or rewriter classes", file=sys.stderr)
+
     # Sort by priority and register
     converters.sort(key=lambda c: getattr(c, 'priority', 1000))
     transforms.sort(key=lambda t: getattr(t, 'priority', 1000))
