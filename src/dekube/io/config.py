@@ -50,8 +50,10 @@ def load_config(path: str) -> dict:
         print("Config migrated to v3.1 key names in memory", file=sys.stderr)
 
     cfg.setdefault("volume_root", "./data")
-    cfg.setdefault("volumes", {})
-    cfg.setdefault("exclude", [])
+    if not isinstance(cfg.get("volumes"), dict):
+        cfg["volumes"] = {}
+    if not isinstance(cfg.get("exclude"), list):
+        cfg["exclude"] = []
     return cfg
 
 

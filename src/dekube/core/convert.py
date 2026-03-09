@@ -81,7 +81,7 @@ def _apply_overrides(compose_services: dict, config: dict,
         resolved = _resolve_secret_refs(overrides, secrets, warnings)
         resolved = _resolve_volume_root(resolved, volume_root)
         _deep_merge(compose_services[svc_name], resolved)
-    for svc_name, svc_def in config.get("services", {}).items():
+    for svc_name, svc_def in (config.get("services") or {}).items():
         if svc_name in compose_services:
             warnings.append(f"custom service '{svc_name}' conflicts with generated service — overwritten")
         resolved = _resolve_secret_refs(svc_def, secrets, warnings)

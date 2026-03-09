@@ -126,6 +126,8 @@ def build_service_port_map(manifests: dict, services_by_selector: dict) -> dict:
             target = sp.get("targetPort", svc_port_num)
             if isinstance(target, str):
                 target = resolve_named_port(target, matched_ports)
+            if isinstance(target, str):
+                continue  # unresolved named port — skip to avoid silent remap failure
             port_map[(svc_name, svc_port_num)] = target
             if sp.get("name"):
                 port_map[(svc_name, sp["name"])] = target

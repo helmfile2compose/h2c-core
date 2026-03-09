@@ -98,8 +98,10 @@ def _resolve_env_entry(entry: dict, configmaps: dict, secrets: dict,
     if "valueFrom" not in entry:
         return None
     vf = entry["valueFrom"]
+    if not vf:  # valueFrom: null (Helm conditional blocks)
+        return None
     if "configMapKeyRef" in vf:
-        ref = vf["configMapKeyRef"]
+        ref = vf["configMapKeyRef"] or {}
         val = (configmaps.get(ref.get("name", ""), {}).get("data") or {}).get(ref.get("key", ""))
         if val is not None:
             return {"name": name, "value": val}
@@ -108,7 +110,7 @@ def _resolve_env_entry(entry: dict, configmaps: dict, secrets: dict,
             f"on {workload_name} could not be resolved"
         )
     elif "secretKeyRef" in vf:
-        ref = vf["secretKeyRef"]
+        ref = vf["secretKeyRef"] or {}
         val = secret_value(secrets.get(ref.get("name", ""), {}), ref.get("key", ""))
         if val is not None:
             return {"name": name, "value": val}
@@ -117,7 +119,7 @@ def _resolve_env_entry(entry: dict, configmaps: dict, secrets: dict,
             f"on {workload_name} could not be resolved"
         )
     elif "fieldRef" in vf:
-        field_path = vf["fieldRef"].get("fieldPath", "")
+        field_path = (vf["fieldRef"] or {}).get("fieldPath", "")
         if field_path == "status.podIP":
             # In compose, the service name is the container's DNS address.
             svc_name = workload_name.split("/", 1)[-1] if "/" in workload_name else workload_name
@@ -136,16 +138,17 @@ def _resolve_envfrom(envfrom_list: list, configmaps: dict, secrets: dict) -> lis
     """Resolve envFrom entries (configMapRef, secretRef) into flat env vars."""
     env_vars: list[dict] = []
     for ef in envfrom_list:
+        prefix = ef.get("prefix", "")
         if "configMapRef" in ef:
             cm = configmaps.get(ef["configMapRef"].get("name", ""), {})
             for k, v in (cm.get("data") or {}).items():
-                env_vars.append({"name": k, "value": v})
+                env_vars.append({"name": f"{prefix}{k}", "value": v})
         elif "secretRef" in ef:
             sec = secrets.get(ef["secretRef"].get("name", ""), {})
             for k in sec.get("data") or {}:
                 val = secret_value(sec, k)
                 if val is not None:
-                    env_vars.append({"name": k, "value": val})
+                    env_vars.append({"name": f"{prefix}{k}", "value": val})
     return env_vars
 
 
