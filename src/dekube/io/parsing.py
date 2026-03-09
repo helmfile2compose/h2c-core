@@ -67,7 +67,7 @@ def run_helmfile_template(helmfile_dir: str, output_dir: str,
 def parse_manifests(rendered_dir: str) -> dict[str, list[dict]]:
     """Load all YAML files from rendered_dir, classify by kind.
 
-    Each manifest gets an internal ``_h2c_release_dir`` annotation (the
+    Each manifest gets an internal ``_release_dir`` annotation (the
     first path component relative to *rendered_dir*) so that downstream
     steps can group manifests by helmfile release.
     """
@@ -82,7 +82,7 @@ def parse_manifests(rendered_dir: str) -> dict[str, list[dict]]:
                 for doc in yaml.safe_load_all(f):
                     if not doc or not isinstance(doc, dict):
                         continue
-                    doc["_h2c_release_dir"] = release_dir
+                    doc["_release_dir"] = release_dir
                     kind = doc.get("kind", "Unknown")
                     manifests.setdefault(kind, []).append(doc)
         except yaml.YAMLError as exc:
@@ -132,7 +132,7 @@ def _build_dir_ns_map(manifests: dict[str, list[dict]],
     dir_ns: dict[str, str] = {}
     for kind_list in manifests.values():
         for m in kind_list:
-            rd = m.get("_h2c_release_dir", "")
+            rd = m.get("_release_dir", "")
             if rd:
                 all_release_dirs.add(rd)
                 ns = m.get("metadata", {}).get("namespace", "")
@@ -156,6 +156,6 @@ def _infer_namespaces(manifests: dict[str, list[dict]],
     for kind_list in manifests.values():
         for m in kind_list:
             if not m.get("metadata", {}).get("namespace", ""):
-                rd = m.get("_h2c_release_dir", "")
+                rd = m.get("_release_dir", "")
                 if rd in dir_ns:
                     m.setdefault("metadata", {})["namespace"] = dir_ns[rd]

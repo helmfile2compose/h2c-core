@@ -75,7 +75,6 @@ def main():
 
     # Step 2: parse
     manifests = parse_manifests(rendered_dir)
-    _infer_namespaces(manifests, release_ns_map)
     kinds = {k: len(v) for k, v in manifests.items()}
     print(f"Parsed manifests: {kinds}", file=sys.stderr)
 
@@ -91,6 +90,10 @@ def main():
               "— ignoring it, only dekube.yaml is used", file=sys.stderr)
     first_run = not os.path.exists(config_path)
     config = load_config(config_path)
+
+    # Step 2b: namespace inference (after config load — respects infer_namespaces flag)
+    if config.get("infer_namespaces", True):
+        _infer_namespaces(manifests, release_ns_map)
     # Always write new config as dekube.yaml
     config_path = os.path.join(args.output_dir, "dekube.yaml")
 
