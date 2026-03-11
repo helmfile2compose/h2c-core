@@ -55,11 +55,12 @@ def resolve_backend(path_entry: dict, manifest: dict,
     upstream (host:port string), ns.
     Handles both v1 and v1beta1 Ingress backend formats.
     """
-    ns = manifest.get("metadata", {}).get("namespace", "")
-    backend = path_entry.get("backend", {})
+    ns = (manifest.get("metadata") or {}).get("namespace", "")
+    backend = path_entry.get("backend") or {}
     if "service" in backend:
-        svc_name = backend["service"].get("name", "")
-        port = backend["service"].get("port", {})
+        svc = backend["service"] or {}
+        svc_name = svc.get("name", "")
+        port = svc.get("port") or {}
         svc_port = port.get("number", port.get("name", 80))
     else:
         svc_name = backend.get("serviceName", "")

@@ -140,11 +140,11 @@ def _resolve_envfrom(envfrom_list: list, configmaps: dict, secrets: dict) -> lis
     for ef in envfrom_list:
         prefix = ef.get("prefix", "")
         if "configMapRef" in ef:
-            cm = configmaps.get(ef["configMapRef"].get("name", ""), {})
+            cm = configmaps.get((ef["configMapRef"] or {}).get("name", ""), {})
             for k, v in (cm.get("data") or {}).items():
                 env_vars.append({"name": f"{prefix}{k}", "value": v})
         elif "secretRef" in ef:
-            sec = secrets.get(ef["secretRef"].get("name", ""), {})
+            sec = secrets.get((ef["secretRef"] or {}).get("name", ""), {})
             for k in sec.get("data") or {}:
                 val = secret_value(sec, k)
                 if val is not None:

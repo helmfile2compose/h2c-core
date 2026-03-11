@@ -21,13 +21,16 @@ def _build_vol_map(pod_volumes: list,
     for v in pod_volumes:
         vname = v.get("name", "")
         if "persistentVolumeClaim" in v:
-            vol_map[vname] = {"type": "pvc", "claim": v["persistentVolumeClaim"].get("claimName", "")}
+            pvc = v["persistentVolumeClaim"] or {}
+            vol_map[vname] = {"type": "pvc", "claim": pvc.get("claimName", "")}
         elif "configMap" in v:
-            vol_map[vname] = {"type": "configmap", "name": v["configMap"].get("name", ""),
-                              "items": v["configMap"].get("items")}
+            cm = v["configMap"] or {}
+            vol_map[vname] = {"type": "configmap", "name": cm.get("name", ""),
+                              "items": cm.get("items")}
         elif "secret" in v:
-            vol_map[vname] = {"type": "secret", "name": v["secret"].get("secretName", ""),
-                              "items": v["secret"].get("items")}
+            sec = v["secret"] or {}
+            vol_map[vname] = {"type": "secret", "name": sec.get("secretName", ""),
+                              "items": sec.get("items")}
         elif "emptyDir" in v:
             vol_map[vname] = {"type": "emptydir"}
         else:
@@ -73,6 +76,8 @@ def _generate_configmap_files(cm_name: str, cm_data: dict, output_dir: str,
             if replacements:
                 rewritten = apply_replacements(rewritten, replacements)
             file_path = os.path.join(abs_dir, key)
+            if "/" in key:
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(rewritten)
     return f"./{rel_dir}"
@@ -113,7 +118,10 @@ def _generate_secret_files(sec_name: str, secret: dict, items: list | None,
                 continue
             if replacements:
                 val = apply_replacements(val, replacements)
-            with open(os.path.join(abs_dir, out_name), "w", encoding="utf-8") as f:
+            out_path = os.path.join(abs_dir, out_name)
+            if "/" in out_name:
+                os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            with open(out_path, "w", encoding="utf-8") as f:
                 f.write(val)
     return f"./{rel_dir}"
 
