@@ -105,19 +105,21 @@ def _resolve_env_entry(entry: dict, configmaps: dict, secrets: dict,
         val = (configmaps.get(ref.get("name", ""), {}).get("data") or {}).get(ref.get("key", ""))
         if val is not None:
             return {"name": name, "value": val}
-        warnings.append(
-            f"configMapKeyRef '{ref.get('name')}/{ref.get('key')}' "
-            f"on {workload_name} could not be resolved"
-        )
+        if not ref.get("optional"):
+            warnings.append(
+                f"configMapKeyRef '{ref.get('name')}/{ref.get('key')}' "
+                f"on {workload_name} could not be resolved"
+            )
     elif "secretKeyRef" in vf:
         ref = vf["secretKeyRef"] or {}
         val = secret_value(secrets.get(ref.get("name", ""), {}), ref.get("key", ""))
         if val is not None:
             return {"name": name, "value": val}
-        warnings.append(
-            f"secretKeyRef '{ref.get('name')}/{ref.get('key')}' "
-            f"on {workload_name} could not be resolved"
-        )
+        if not ref.get("optional"):
+            warnings.append(
+                f"secretKeyRef '{ref.get('name')}/{ref.get('key')}' "
+                f"on {workload_name} could not be resolved"
+            )
     elif "fieldRef" in vf:
         field_path = (vf["fieldRef"] or {}).get("fieldPath", "")
         if field_path == "status.podIP":

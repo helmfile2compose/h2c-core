@@ -77,7 +77,7 @@ Flags: `--helmfile-dir`, `-e`/`--environment`, `--from-dir`, `--output-dir`, `--
 - **Sidecar containers** (`containers[1:]`) → separate compose services with `network_mode: container:<main>` (shared network namespace)
 - **Fix-permissions** → handled by the fix-permissions transform (built-in extension), generates a busybox service for non-root bind mounts
 - **Hostname truncation** → services >63 chars get explicit `hostname:` to avoid sethostname failures
-- Warns on stderr for: resource limits, HPA, CronJob, PDB, unknown kinds
+- Warns on stderr for: HPA, CronJob, PDB, unknown kinds
 - Silently ignores: RBAC, ServiceAccounts, NetworkPolicies, CRDs (unless claimed by a loaded extension), IngressClass, Webhooks, Namespaces
 - Writes `compose.yml` (configurable via `--compose-file`), `Caddyfile` (or `Caddyfile-<project>` when `disable_ingress: true`), `dekube.yaml`
 - **Exit codes**: 0 = success, 1 = fatal error, 2 = no services generated (empty output — not a crash, but nothing useful produced)
@@ -191,7 +191,7 @@ Behaviors maintained for third-party extensions and legacy configs:
 
 ## Out of scope
 
-CronJobs, resource limits/requests, HPA, PDB, RBAC, ServiceAccounts, NetworkPolicies, probes→healthcheck.
+CronJobs, resource requests, HPA, PDB, RBAC, ServiceAccounts, NetworkPolicies.
 
 ## Known gaps
 

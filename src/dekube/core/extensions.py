@@ -45,13 +45,16 @@ def _is_transform_class(obj, mod_name):
 def _load_module(filepath):
     """Load a single extension module, return it or None on failure."""
     parent = str(Path(filepath).parent)
-    if parent not in sys.path:
-        sys.path.insert(0, parent)
     # Prefix avoids collisions with stdlib modules (e.g. "secrets" → "dekube_op_secrets")
     mod_name = f"dekube_op_{Path(filepath).stem}"
     spec = importlib.util.spec_from_file_location(mod_name, filepath)
     if spec is None or spec.loader is None:
         return None
+    # Temporarily add parent to sys.path for the extension's own imports,
+    # then restore to avoid shadowing stdlib/third-party modules.
+    added = parent not in sys.path
+    if added:
+        sys.path.insert(0, parent)
     try:
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -59,6 +62,9 @@ def _load_module(filepath):
     except Exception as exc:  # pylint: disable=broad-except
         print(f"Warning: failed to load {filepath}: {exc}", file=sys.stderr)
         return None
+    finally:
+        if added and parent in sys.path:
+            sys.path.remove(parent)
 
 
 def _classify_module(module, converters, transforms, rewriters):

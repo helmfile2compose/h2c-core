@@ -1,5 +1,6 @@
 """Volume mount conversion — PVC, ConfigMap, Secret, emptyDir."""
 
+import base64
 import os
 
 from dekube.pacts.helpers import apply_replacements, secret_value
@@ -60,9 +61,10 @@ def _convert_pvc_mount(claim: str, mount_path: str, pvc_names: set,
 
 
 def _generate_configmap_files(cm_name: str, cm_data: dict, output_dir: str,
-                              generated_cms: set,
+                              generated_cms: set, warnings: list[str],
                               replacements: list[dict] | None = None,
-                              service_port_map: dict | None = None) -> str:
+                              service_port_map: dict | None = None,
+                              binary_data: dict | None = None) -> str:
     """Write ConfigMap data entries as files. Returns the directory path (relative)."""
     rel_dir = os.path.join("configmaps", cm_name)
     abs_dir = os.path.join(output_dir, rel_dir)
@@ -78,8 +80,20 @@ def _generate_configmap_files(cm_name: str, cm_data: dict, output_dir: str,
             file_path = os.path.join(abs_dir, key)
             if "/" in key:
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            if not os.path.realpath(file_path).startswith(os.path.realpath(output_dir) + os.sep):
+                warnings.append(f"ConfigMap '{cm_name}' key '{key}' would escape output directory — skipped")
+                continue
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(rewritten)
+        for key, b64val in (binary_data or {}).items():
+            file_path = os.path.join(abs_dir, key)
+            if "/" in key:
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            if not os.path.realpath(file_path).startswith(os.path.realpath(output_dir) + os.sep):
+                warnings.append(f"ConfigMap '{cm_name}' binaryData key '{key}' would escape output directory — skipped")
+                continue
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(b64val))
     return f"./{rel_dir}"
 
 
@@ -121,6 +135,9 @@ def _generate_secret_files(sec_name: str, secret: dict, items: list | None,
             out_path = os.path.join(abs_dir, out_name)
             if "/" in out_name:
                 os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            if not os.path.realpath(out_path).startswith(os.path.realpath(output_dir) + os.sep):
+                warnings.append(f"Secret '{sec_name}' key '{out_name}' would escape output directory — skipped")
+                continue
             with open(out_path, "w", encoding="utf-8") as f:
                 f.write(val)
     return f"./{rel_dir}"
@@ -161,9 +178,10 @@ def convert_volume_mounts(volume_mounts: list, pod_volumes: list, pvc_names: set
                 warnings.append(f"ConfigMap '{source['name']}' referenced by {workload_name} not found")
                 continue
             cm_dir = _generate_configmap_files(source["name"], cm.get("data") or {},
-                                               output_dir, generated_cms,
+                                               output_dir, generated_cms, warnings,
                                                replacements=replacements,
-                                               service_port_map=service_port_map)
+                                               service_port_map=service_port_map,
+                                               binary_data=cm.get("binaryData") or {})
             result.append(_convert_data_mount(cm_dir, vm))
         elif vol_type == "secret" and secrets is not None:
             sec = secrets.get(source["name"])

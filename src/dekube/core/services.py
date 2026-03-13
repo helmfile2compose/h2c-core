@@ -49,16 +49,27 @@ def build_alias_map(manifests: dict, services_by_selector: dict) -> dict[str, st
             alias_map[svc_name] = wl_name
 
     # ExternalName services: resolve target → compose service name
+    # Two passes: first pass resolves direct targets, second resolves chains
     known_workloads = {wl_name for _, wl_name in workloads}
+    external_names = []
     for svc_manifest in manifests.get("Service", []):
         spec = svc_manifest.get("spec", {})
         if spec.get("type") != "ExternalName":
             continue
         svc_name = svc_manifest.get("metadata", {}).get("name", "")
         target = _K8S_DNS_RE.sub(r'\1', spec.get("externalName", ""))
-        compose_name = alias_map.get(target, target)
-        if compose_name in known_workloads:
-            alias_map[svc_name] = compose_name
+        external_names.append((svc_name, target))
+
+    changed = True
+    while changed:  # iterate until all chains are resolved
+        changed = False
+        for svc_name, target in external_names:
+            if svc_name in alias_map:
+                continue
+            compose_name = alias_map.get(target, target)
+            if compose_name in known_workloads:
+                alias_map[svc_name] = compose_name
+                changed = True
 
     return alias_map
 
