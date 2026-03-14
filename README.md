@@ -57,6 +57,7 @@ python3 dekube.py --from-dir /tmp/rendered --extensions-dir ./my-extensions --ou
 | Repo | Description |
 |------|-------------|
 | [helmfile2compose](https://github.com/dekubeio/helmfile2compose) | Full distribution (core + 8 bundled extensions) |
+| [kubernetes2simple](https://k2s.dekube.io/) | Turnkey distribution — one command, zero config |
 | [dekube-manager](https://github.com/dekubeio/dekube-manager) | Package manager + extension registry |
 | [dekube-docs](https://docs.dekube.io) | Documentation site |
 
