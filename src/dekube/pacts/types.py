@@ -26,6 +26,7 @@ class ConvertContext:
     manifests: dict = field(default_factory=dict)
     extension_config: dict = field(default_factory=dict)
     first_run: bool = False
+    compose_extras: dict = field(default_factory=dict)
 
 
 @dataclass
