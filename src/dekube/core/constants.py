@@ -30,7 +30,7 @@ IGNORED_KINDS = (
 )
 
 # K8s kinds that produce compose services (iterated together everywhere)
-WORKLOAD_KINDS = ("DaemonSet", "Deployment", "Job", "StatefulSet")
+WORKLOAD_KINDS = ("DaemonSet", "Deployment", "Job", "Pod", "StatefulSet")
 
 # K8s $(VAR) interpolation in command/args (kubelet resolves these from env vars)
 _K8S_VAR_REF_RE = re.compile(r'\$\(([A-Za-z_][A-Za-z0-9_]*)\)')
