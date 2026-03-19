@@ -197,4 +197,4 @@ CronJobs, resource requests, HPA, PDB, RBAC, ServiceAccounts, NetworkPolicies.
 
 - **S3 virtual-hosted style** — AWS SDK defaults to virtual-hosted bucket URLs (`bucket.host:port`). Compose DNS can't resolve dotted aliases. Fix app-side with `force_path_style` / `path_style_buckets = true`, then use a `replacement` to flip the value.
 - **ConfigMap/Secret name collisions** — the manifest index is flat (no namespace). If two CMs share a name across namespaces with different content, last-parsed wins. Not a problem for reflector (same content by definition).
-- **emptyDir sharing** — K8s `emptyDir` volumes shared between init/sidecar containers and the main container are converted to anonymous volumes, not shared in compose. Manual named volume mapping needed.
+- **emptyDir sharing** — K8s `emptyDir` volumes shared between init/sidecar containers and the main container are converted to anonymous volumes, not shared in compose. Fixed by the `emptydir` transform extension (bundled in helmfile2compose). Without the extension, manual named volume mapping needed.
