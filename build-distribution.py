@@ -197,6 +197,88 @@ def discover_extensions(extensions_dir: Path) -> list[Path]:
     return py_files
 
 
+def _find_bare_calls(tree: ast.AST, func_name: str) -> bool:
+    """Check if a function is called as a bare name (not self.func or cls.func)."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id == func_name:
+                return True
+    return False
+
+
+def check_function_shadowing(ext_files: list[Path], allow: bool = False) -> None:
+    """Detect top-level function name collisions between extensions.
+
+    Extensions are concatenated into a single namespace — if two define
+    the same top-level function, the second silently overwrites the first.
+
+    Two severity levels:
+    - Shadowed + called as bare name → fatal (will break at runtime)
+    - Shadowed but only called via self → warning (safe in practice)
+    """
+    func_owners: dict[str, list[str]] = {}
+    ext_trees: dict[str, ast.AST] = {}
+    for ext_path in ext_files:
+        try:
+            tree = ast.parse(ext_path.read_text())
+        except SyntaxError:
+            continue
+        ext_trees[ext_path.stem] = tree
+        for node in ast.iter_child_nodes(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                func_owners.setdefault(node.name, []).append(ext_path.stem)
+
+    shadows = {name: owners for name, owners in func_owners.items() if len(owners) > 1}
+    if not shadows:
+        return
+
+    # Check which shadowed functions are called as bare names
+    dangerous = {}
+    safe = {}
+    for name, owners in shadows.items():
+        bare_callers = [ext for ext in owners if _find_bare_calls(ext_trees[ext], name)]
+        if bare_callers:
+            dangerous[name] = (owners, bare_callers)
+        else:
+            safe[name] = owners
+
+    if safe:
+        print("\nFunction shadowing detected (safe — all calls use self):",
+              file=sys.stderr)
+        for name, owners in sorted(safe.items()):
+            print(f"  {name}() defined by: {', '.join(owners)}", file=sys.stderr)
+        print("  Consider moving these into the class to keep things clean.\n",
+              file=sys.stderr)
+
+    if not dangerous:
+        return
+
+    print("\nFunction shadowing detected (DANGEROUS — bare calls found):",
+          file=sys.stderr)
+    for name, (owners, callers) in sorted(dangerous.items()):
+        print(f"  {name}() defined by: {', '.join(owners)}"
+              f" — called as bare {name}() in: {', '.join(callers)}",
+              file=sys.stderr)
+    print(
+        "\nWhen concatenated into a distribution, the last definition wins "
+        "and earlier ones are silently overwritten. Move helpers into your "
+        "extension class (self._helper() or @staticmethod) to avoid collisions.",
+        file=sys.stderr,
+    )
+
+    if allow:
+        print("\n--my-extensions-are-fine-i-swear is set. They are not. Proceeding.\n",
+              file=sys.stderr)
+    else:
+        print(
+            "\nRefusing to build. Fix your extensions (move helpers into the class), "
+            "or pass --my-extensions-are-fine-i-swear if you want a distribution "
+            "where functions silently eat each other.\n",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def build_core_body_from_local(core_dir: Path) -> tuple[dict[str, str], list[str]]:
     """Read core sources from a local dekube-engine checkout."""
     src_dir = core_dir / "src" / "dekube"
@@ -266,6 +348,8 @@ def main():
                         help="Distribution name from registry (default: engine)")
     parser.add_argument("--base-version", default="latest",
                         help="Distribution version to fetch (default: latest)")
+    parser.add_argument("--my-extensions-are-fine-i-swear", action="store_true",
+                        help="Build anyway despite top-level function collisions between extensions. They are not fine.")
     args = parser.parse_args()
 
     output = Path(args.name + ".py")
@@ -290,6 +374,7 @@ def main():
         sys.exit(1)
 
     ext_files = discover_extensions(args.extensions_dir)
+    check_function_shadowing(ext_files, allow=args.my_extensions_are_fine_i_swear)
     for ext_path in ext_files:
         imports, body = collect_imports_and_body(ext_path)
         for imp in imports:
