@@ -7,7 +7,8 @@ import yaml
 
 
 def write_compose(services: dict, config: dict, output_dir: str,
-                  compose_file: str = "compose.yml") -> None:
+                  compose_file: str = "compose.yml",
+                  compose_extras: dict | None = None) -> None:
     """Write compose file."""
     compose = {}
     if config.get("name"):
@@ -18,6 +19,10 @@ def write_compose(services: dict, config: dict, output_dir: str,
     named_volumes = {}
     for vol_name, vol_cfg in config.get("volumes", {}).items():
         if isinstance(vol_cfg, dict) and "host_path" not in vol_cfg:
+            named_volumes[vol_name] = vol_cfg
+    # Merge transform-contributed volumes (e.g., emptyDir sharing)
+    for vol_name, vol_cfg in ((compose_extras or {}).get("volumes") or {}).items():
+        if vol_name not in named_volumes:  # user config wins
             named_volumes[vol_name] = vol_cfg
     if named_volumes:
         compose["volumes"] = named_volumes

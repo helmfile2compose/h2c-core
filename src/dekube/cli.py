@@ -110,8 +110,8 @@ def main():
                              _CONVERTERS, _TRANSFORMS, _REWRITERS, CONVERTED_KINDS)
 
     # Step 4: convert
-    services, ingress_entries, warnings = convert(manifests, config, output_dir=args.output_dir,
-                                                  first_run=first_run)
+    services, ingress_entries, warnings, compose_extras = convert(
+        manifests, config, output_dir=args.output_dir, first_run=first_run)
 
     # Step 5: emit warnings
     emit_warnings(warnings)
@@ -121,7 +121,8 @@ def main():
         print("No services generated — nothing to write.", file=sys.stderr)
         sys.exit(2)
 
-    write_compose(services, config, args.output_dir, compose_file=args.compose_file)
+    write_compose(services, config, args.output_dir, compose_file=args.compose_file,
+                  compose_extras=compose_extras)
 
     # Write ingress config via the active IngressProvider
     ingress_provider = next(

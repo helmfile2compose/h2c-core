@@ -100,8 +100,8 @@ def _emit_kind_warnings(manifests: dict, warnings: list[str]) -> None:
 
 
 def convert(manifests: dict[str, list[dict]], config: dict,
-            output_dir: str = ".", first_run: bool = False) -> tuple[dict, list[dict], list[str]]:
-    """Main conversion: returns (compose_services, ingress_entries, warnings)."""
+            output_dir: str = ".", first_run: bool = False) -> tuple[dict, list[dict], list[str], dict]:
+    """Main conversion: returns (compose_services, ingress_entries, warnings, compose_extras)."""
     warnings: list[str] = []
 
     # Build context with empty containers — indexers populate them
@@ -166,7 +166,7 @@ def convert(manifests: dict[str, list[dict]], config: dict,
     # Overrides run after transforms so transform-created services can be overridden
     _apply_overrides(compose_services, config, ctx.secrets, warnings)
 
-    return compose_services, ingress_entries, warnings
+    return compose_services, ingress_entries, warnings, ctx.compose_extras
 
 
 def _inject_network_aliases(compose_services: dict, network_aliases: dict) -> None:
